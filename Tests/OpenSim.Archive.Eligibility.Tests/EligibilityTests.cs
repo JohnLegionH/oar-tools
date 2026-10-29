@@ -130,6 +130,43 @@ public class EligibilityTests
         Assert.Equal(ReasonCodes.Flexi, row.Code);
     }
 
+    [Theory]
+    [InlineData(0)]    // no path type
+    [InlineData(64)]   // the viewer's test path
+    [InlineData(128)]  // the flexible path type, which the viewer draws as a bending path
+    public void APrimWithAPathTypeTheExportDoesNotBuildIsKept(int pathCurve)
+    {
+        OpenSim.Archive.Inspection.ShapeData shape = FaceMatrix.Shape("box", "plain");
+        shape.PathCurve = pathCurve;
+        EligibilityRow row = One(new KitPart("OddPath") { Shape = shape });
+        Assert.Equal(PartAction.KeepPrim, row.Action);
+        Assert.Equal(ReasonCodes.ShapeUnsupported, row.Code);
+        Assert.Contains("path", row.Reasons[0].Detail);
+    }
+
+    [Fact]
+    public void APrimWithAProfileTypeBeyondTheHalfCircleIsKept()
+    {
+        OpenSim.Archive.Inspection.ShapeData shape = FaceMatrix.Shape("box", "plain");
+        shape.ProfileCurve = 6;
+        EligibilityRow row = One(new KitPart("OddProfile") { Shape = shape });
+        Assert.Equal(PartAction.KeepPrim, row.Action);
+        Assert.Equal(ReasonCodes.ShapeUnsupported, row.Code);
+        Assert.Contains("profile", row.Reasons[0].Detail);
+    }
+
+    [Theory]
+    [InlineData(16)]
+    [InlineData(32)]
+    [InlineData(48)]
+    public void APrimWithALineOrCirclePathIsNotKeptForItsPath(int pathCurve)
+    {
+        OpenSim.Archive.Inspection.ShapeData shape = FaceMatrix.Shape("cylinder", "plain");
+        shape.PathCurve = pathCurve;
+        EligibilityRow row = One(new KitPart("Path") { Shape = shape });
+        Assert.DoesNotContain(row.Reasons, r => r.Code == ReasonCodes.ShapeUnsupported);
+    }
+
     [Fact]
     public void AShapeWithMoreThanEightViewerFacesIsKept()
     {

@@ -42,6 +42,8 @@ public static class ReasonCodes
     public const string FaceRuleUnverified = "FACERULE_UNVERIFIED";
     /// <summary>The shape's texture coordinates, as the mesher builds them, are not the viewer's (see UvRules).</summary>
     public const string UvUnverified = "UV_UNVERIFIED";
+    /// <summary>The prim's profile or path type is one the export does not build the way the viewer does (a path type other than line, circle and the second circle, or a profile type above the half circle).</summary>
+    public const string ShapeUnsupported = "SHAPE_UNSUPPORTED";
     /// <summary>A warning, not a reason to keep: the side count changes and no script was seen to depend on it.</summary>
     public const string SideCountChanges = "SIDE_COUNT_CHANGES";
 }
