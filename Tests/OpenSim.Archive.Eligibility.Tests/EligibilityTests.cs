@@ -110,6 +110,33 @@ public class EligibilityTests
     }
 
     [Fact]
+    public void APartWithoutTheExportBitInBaseIsKeptUnlessTheOwnerHasModifyCopyAndTransfer()
+    {
+        uint modify = (uint)PermissionMask.Modify, copy = (uint)PermissionMask.Copy, transfer = (uint)PermissionMask.Transfer;
+        string owner = "b0b00000-0000-4000-8000-000000000002";
+        KitPart full = new KitPart("Full") { Owner = owner, BaseMask = modify | copy | transfer, OwnerMask = modify | copy | transfer };
+        KitPart noCopy = new KitPart("NoCopy") { Owner = owner, BaseMask = modify | copy | transfer, OwnerMask = modify | transfer };
+        KitPart everyoneOnly = new KitPart("EveryoneOnly") { Owner = owner, BaseMask = modify | copy | transfer, OwnerMask = 0, EveryoneMask = modify | copy | transfer };
+        EligibilityResult r = Evaluate(new[] { full, noCopy, everyoneOnly });
+        Assert.Equal(PartAction.Convert, Row(r, full).Action);
+        Assert.Equal(ReasonCodes.ExportDenied, Row(r, noCopy).Code);
+        Assert.Equal(PartAction.KeepPrim, Row(r, noCopy).Action);
+        Assert.Equal(ReasonCodes.ExportDenied, Row(r, everyoneOnly).Code);
+    }
+
+    [Fact]
+    public void LibraryContentAndAnUnknownCreatorAreCheckedLikeAnyOtherPart()
+    {
+        uint modify = (uint)PermissionMask.Modify, copy = (uint)PermissionMask.Copy, transfer = (uint)PermissionMask.Transfer;
+        string owner = "b0b00000-0000-4000-8000-000000000002";
+        KitPart library = new KitPart("Library") { Creator = OpenSim.Framework.Constants.m_MrOpenSimIDString, Owner = owner, BaseMask = modify | copy | transfer, OwnerMask = 0 };
+        KitPart unknown = new KitPart("Unknown") { Creator = "00000000-0000-0000-0000-000000000000", Owner = owner, BaseMask = modify | copy | transfer, OwnerMask = 0 };
+        EligibilityResult r = Evaluate(new[] { library, unknown });
+        Assert.Equal(ReasonCodes.ExportDenied, Row(r, library).Code);
+        Assert.Equal(ReasonCodes.ExportDenied, Row(r, unknown).Code);
+    }
+
+    [Fact]
     public void APhysicalPartOrAVehicleIsKeptWhateverTheScanSays()
     {
         KitPart physical = new KitPart("Phys") { Flags = "Physics Phantom" };

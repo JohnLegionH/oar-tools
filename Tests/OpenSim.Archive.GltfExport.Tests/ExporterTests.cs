@@ -347,7 +347,8 @@ public class ExporterTests
     [InlineData(Export | 0x7fff, 0x7fff, 0u, false)]         // base has the right, nobody grants it: refused
     [InlineData(Export | 0x7fff, 0x7fff | Export, 0u, true)] // owner mask grants it
     [InlineData(Export | 0x7fff, 0x7fff, Export, true)]      // everyone mask keeps the creator's choice
-    [InlineData(0x7fffu, 0x7fffu, 0u, true)]                 // no export bit in base: an archive from before the bit; not counted as refused
+    [InlineData(0x7fffu, 0x7fffu, 0u, false)]                // no export bit in base and the owner mask lacks copy: refused
+    [InlineData(0xe000u, 0xe000u, 0u, true)]                 // no export bit in base: the owner has modify, copy and transfer
     public void OnlyAnExplicitRefusalOfAHeldPartBlocksIt(uint baseMask, uint ownerMask, uint everyoneMask, bool allowed)
     {
         BuiltBuild b = Build(Group(Held(baseMask, ownerMask, everyoneMask)));
