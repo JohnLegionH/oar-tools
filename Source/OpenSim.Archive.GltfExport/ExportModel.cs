@@ -33,8 +33,11 @@ public sealed class ExportOptions
 {
     /// <summary>Folder the builds are written to; created when missing.</summary>
     public string OutputDirectory { get; set; }
-    /// <summary>Remove duplicate and loose vertices and zero-area triangles from every face (on by default; the command line's --no-clean turns it off).</summary>
-    public bool Clean { get; set; } = true;
+    /// <summary>
+    /// Remove duplicate and loose vertices and zero-area triangles from every face. Off by default: the geometry is written exactly as
+    /// built. The command line's --clean turns it on; --no-clean is accepted and does nothing.
+    /// </summary>
+    public bool Clean { get; set; }
     /// <summary>
     /// The start-up check of the image library: returns null when it works, otherwise the reason it does not (the export
     /// then stops before writing anything). Null runs the built-in check, <see cref="ImageSelfCheck.Problem"/>; tests replace it.
@@ -138,7 +141,7 @@ public sealed class ManifestPart
     /// <summary>Prim faces written (exported parts only).</summary>
     public int? Faces { get; set; }
     public int? Triangles { get; set; }
-    /// <summary>Numbers of the faces cleaning left as they were because every triangle of them had no area; absent when there are none.</summary>
+    /// <summary>Numbers of the faces cleaning left as they were because every triangle of them had no area, or because the face carries a second texture coordinate set; absent when there are none.</summary>
     public List<int> UncleanedFaces { get; set; }
     /// <summary>The sculpt map or mesh asset the part is built from (sculpt and mesh parts only).</summary>
     public string GeometryAssetId { get; set; }

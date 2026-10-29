@@ -17,7 +17,7 @@ internal static class ExportCommand
     public const string Usage =
 @"Usage: oar-tools export <archive.oar> --out <folder> [--object <uuid|name>] [--limit N]
        [--self-contained] [--max-memory-mb N] [--max-cache-mb N] [--skip-space-check]
-       [--world] [--force] [--no-clean] [--cache-dir <folder>] [--progress-every N] [--diagnostics <file>] [--diagnostics-every N] [--diagnostics-live]
+       [--world] [--force] [--clean] [--no-clean] [--cache-dir <folder>] [--progress-every N] [--diagnostics <file>] [--diagnostics-every N] [--diagnostics-live]
 
 Writes one folder per build (linkset) under <folder>: <name>_<id>.glb and manifest.json, plus export-summary.json and
 export-summary.txt. Every build's textures are PNG files in one shared <folder>/textures (the original .jp2 and the
@@ -38,9 +38,11 @@ The archive is only read. Parts whose creator did not allow export are listed in
   --skip-space-check   accepted and ignored (the free-space estimate is only a warning now); kept for old command lines
   --cache-dir <folder> where asset bodies wait while the builds are written (default: .asset-cache in the output folder);
                        left in place at the end, safe to remove
-  --no-clean           keep the geometry as the mesher builds it: by default duplicate and loose vertices and zero-area triangles are
-                       removed from every face (texture coordinates, faces and face numbers are never changed) and the file is
-                       indexed and stamped with the version; with --no-clean the file has no stamp, as before version 0.2
+  --clean              remove duplicate and loose vertices and zero-area triangles from every face (texture coordinates, faces and face
+                       numbers are never changed); the file is then indexed and stamped with the version. Without it the geometry is
+                       written exactly as the viewer's volume code builds it: nothing is welded, removed or reordered
+  --no-clean           accepted and ignored: the geometry is already written as built unless --clean is given (cleaning was the default
+                       before version 0.5.1)
   --force              write every build again; by default a build that an earlier run into the same folder wrote from the
                        same object file with the same tool version is left as it is
   --progress-every N   print progress after every N builds (default 25) and at least every ten seconds, on standard error
@@ -130,8 +132,11 @@ Exit codes: 0 done (also when some builds failed), 2 not a region archive or unr
                         return Fail("--diagnostics-every needs a number of at least 1");
                     options.DiagnosticsEvery = dEvery;
                     break;
+                case "--clean":
+                    options.Clean = true;
+                    break;
                 case "--no-clean":
-                    options.Clean = false;
+                    // accepted so earlier command lines still work; the geometry is not cleaned unless --clean is given
                     break;
                 case "--version":
                     Console.Out.WriteLine("oar-tools " + ToolRelease.Version);

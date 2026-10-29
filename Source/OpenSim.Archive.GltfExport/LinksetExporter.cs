@@ -39,7 +39,7 @@ internal static class LinksetExporter
     private const byte NewTreeCode = 111;
     private const byte TreeCode = 255;
 
-    public static BuiltBuild Build(ParsedGroup g, string archiveName, string entry, string glbFileName, bool world = false, ArchiveAssets assets = null, bool shared = false, bool clean = true)
+    public static BuiltBuild Build(ParsedGroup g, string archiveName, string entry, string glbFileName, bool world = false, ArchiveAssets assets = null, bool shared = false, bool clean = false)
     {
         // link-number order; the file order is not the link order. A stable sort keeps file order for equal numbers.
         List<ParsedPart> parts = g.Parts.Select((p, i) => (p, i)).OrderBy(t => t.p.Part.LinkNum).ThenBy(t => t.i).Select(t => t.p).ToList();
@@ -55,6 +55,7 @@ internal static class LinksetExporter
             {
                 ["kind"] = "object",
                 ["name"] = Text.Clean(g.Name),
+                ["rootPartName"] = Text.Clean(g.Name),
                 ["rootPartUuid"] = root.Part.PartId.ToString(),
                 ["partCount"] = parts.Count,
                 ["archiveEntry"] = Text.Clean(entry),
@@ -71,6 +72,9 @@ internal static class LinksetExporter
             objectNode.Rotation = GltQuat(root.RotationOffset);
         }
         doc.Nodes.Add(objectNode);
+        // the parts in the file, in link order (the node order is the same, but a tool that reads the nodes back may not keep it)
+        JsonArray linkOrder = new JsonArray();
+        objectNode.Extras["linkOrder"] = linkOrder;
 
         BuildManifest manifest = new BuildManifest
         {
@@ -162,6 +166,7 @@ internal static class LinksetExporter
             }
 
             node.Extras = extras;
+            linkOrder.Add(new JsonObject { ["linkNumber"] = rec.LinkNum, ["name"] = Text.Clean(rec.Name), ["partUuid"] = rec.PartId.ToString() });
             doc.Nodes.Add(node);
             objectNode.Children.Add(doc.Nodes.Count - 1);
             manifest.Parts.Add(mp);
@@ -489,13 +494,21 @@ internal static class LinksetExporter
                 if (len > 1e-12f) { nx /= len; ny /= len; nz /= len; }
                 nor[i] = nx; nor[i + 1] = nz; nor[i + 2] = -ny;
             }
-            // the mesher's coordinates already have v = 0 at the top of the image, which is glTF's convention
+            // the generated coordinates, never transformed: they already have v = 0 at the top of the image, which is glTF's convention
             for (int i = 0; i < uv.Length; i++)
                 uv[i] = Finite(f.Uvs[i]);
 
+            FaceSettings settings = FaceMaterials.Read(textures.Face(f.Number), f.Number);
+            int materialIndex = FaceMaterials.Material(materials, settings, materialInfo, pp, out bool secondSet);
+            float[] uv1 = secondSet
+                ? ViewerTextureMapping.SecondSet(f.Positions, f.Normals, uv, settings.Mapping == MappingType.Planar, sx, sy, sz,
+                    settings.RepeatU, settings.RepeatV, settings.OffsetU, settings.OffsetV, settings.Rotation)
+                : null;
+
             int[] indices = null;
             int faceTriangles = f.TriangleCount;
-            if (doc.Clean)
+            // a face with a second coordinate set is left as built even when cleaning is asked for: the cleaner welds on the first set only
+            if (doc.Clean && !secondSet)
             {
                 CleanedFace cleaned = GeometryCleaner.Clean(pos, nor, uv);
                 pos = cleaned.Positions; nor = cleaned.Normals; uv = cleaned.Uvs; indices = cleaned.Indices;
@@ -503,6 +516,8 @@ internal static class LinksetExporter
                 if (cleaned.KeptAsWas)
                     (mesh.UncleanedFaces ??= new List<int>()).Add(f.Number);
             }
+            else if (doc.Clean)
+                (mesh.UncleanedFaces ??= new List<int>()).Add(f.Number);
             n = pos.Length;
 
             float[] faceNumbers = new float[n / 3];
@@ -510,16 +525,12 @@ internal static class LinksetExporter
             float[] partLinks = new float[n / 3];
             Array.Fill(partLinks, partLink);
 
-            FaceSettings settings = FaceMaterials.Read(textures.Face(f.Number), f.Number);
-            int materialIndex = FaceMaterials.Material(materials, settings, materialInfo, pp, out bool bakedUv);
-            if (bakedUv)
-                UvTransform.Bake(uv, settings.RepeatU, settings.RepeatV, settings.OffsetU, settings.OffsetV, settings.Rotation);
-
             GltfPrimitive prim = new GltfPrimitive
             {
                 Positions = pos,
                 Normals = nor,
                 Uvs = uv,
+                Uvs1 = uv1,
                 FaceNumbers = faceNumbers,
                 PartLinks = partLinks,
                 Indices = indices,

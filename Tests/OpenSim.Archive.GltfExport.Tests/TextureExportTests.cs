@@ -324,18 +324,12 @@ public class TextureExportTests
         Assert.Equal("embedded", x.GetProperty("textureStatus").GetString());
         Assert.False(x.GetProperty("placeholder").GetBoolean());
         Assert.True(x.GetProperty("textureHasAlpha").GetBoolean());
-        Assert.True(x.GetProperty("khrTextureTransformExact").GetBoolean());
-
-        // KHR_texture_transform carries the same transform, in the extension the file declares
-        Assert.Contains("KHR_texture_transform", glb.Root.GetProperty("extensionsUsed").EnumerateArray().Select(e => e.GetString()));
+        // the face is planar: its exact mapping is in TEXCOORD_1, which the texture reads as it is, so the extension is not used on it
+        Assert.False(x.GetProperty("khrTextureTransformExact").GetBoolean());
+        Assert.Equal("TEXCOORD_1", x.GetProperty("uvSet").GetString());
         JsonElement tex = m.GetProperty("pbrMetallicRoughness").GetProperty("baseColorTexture");
-        JsonElement t = tex.GetProperty("extensions").GetProperty("KHR_texture_transform");
-        // the extension carries the transform of the values as stored, which the extras hold exactly
-        float[] rep = x.GetProperty("repeat").EnumerateArray().Select(e => e.GetSingle()).ToArray();
-        UvTransform.ToKhr(rep[0], rep[1], offsetValues[0], offsetValues[1], rotationValue, out float[] offset, out float[] scale, out _);
-        Assert.Equal(offset, t.GetProperty("offset").EnumerateArray().Select(e => e.GetSingle()).ToArray());
-        Assert.Equal(scale, t.GetProperty("scale").EnumerateArray().Select(e => e.GetSingle()).ToArray());
-        Assert.Equal(rotationValue, t.GetProperty("rotation").GetSingle());
+        Assert.Equal(1, tex.GetProperty("texCoord").GetInt32());
+        Assert.False(tex.TryGetProperty("extensions", out _));
     }
 
     [Fact]

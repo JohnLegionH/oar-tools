@@ -311,9 +311,12 @@ internal static class FaceMaterials
     /// The glTF material for a face, created once per distinct combination of texture and settings. The material's extras
     /// hold every value the face carries, so its name (the texture id) can be changed by a tool without losing anything.
     /// </summary>
-    public static int Material(MaterialContext ctx, FaceSettings f, PartMaterialInfo info, ParsedPart pp, out bool bakedUv)
+    public static int Material(MaterialContext ctx, FaceSettings f, PartMaterialInfo info, ParsedPart pp, out bool secondSet)
     {
-        bakedUv = false;
+        // a planar face, or one rotated with unequal repeats, has its exact mapping in TEXCOORD_1; every other face reads TEXCOORD_0
+        bool planar = f.Mapping == MappingType.Planar;
+        string secondSetReason = ViewerTextureMapping.SecondSetReason(planar, f.RepeatU, f.RepeatV, f.Rotation);
+        secondSet = secondSetReason != null;
         JsonObject extras = new JsonObject
         {
             ["kind"] = "face-material",
@@ -326,11 +329,16 @@ internal static class FaceMaterials
             ["fullbright"] = f.Fullbright,
             ["shiny"] = f.Shiny.ToString(),
             ["bumpmap"] = f.Bump.ToString(),
-            ["mapping"] = f.Mapping == MappingType.Planar ? "planar" : "default",
-            ["media"] = f.MediaFlag
+            ["mapping"] = planar ? "planar" : "default",
+            ["media"] = f.MediaFlag,
+            ["uvSet"] = secondSet ? "TEXCOORD_1" : "TEXCOORD_0"
         };
-        if (f.Mapping == MappingType.Planar)
-            extras["mappingNote"] = "planar mapping is not applied to the texture coordinates; they are the default ones";
+        if (secondSet)
+            extras["uvSetReason"] = secondSetReason;
+        if (planar)
+            extras["mappingNote"] = "TEXCOORD_0 holds the face's original coordinates; TEXCOORD_1 holds the planar projection with the face's repeats, offset and rotation applied, which is what the viewer draws";
+        else if (secondSet)
+            extras["mappingNote"] = "TEXCOORD_0 holds the face's original coordinates; TEXCOORD_1 holds them with the face's rotation, repeats and offset applied in the viewer's order, which KHR_texture_transform cannot express";
         if (f.Bump != Bumpiness.None)
             extras["bumpmapNote"] = "legacy bump map (a built-in brightness or darkness map), not a normal map";
 
@@ -353,7 +361,7 @@ internal static class FaceMaterials
         if (image != null)
         {
             m.BaseColorTexture = TextureRef(ctx, f.TextureId, image);
-            if (UvTransform.IsExactInKhr(f.RepeatU, f.RepeatV, f.Rotation))
+            if (!secondSet)
             {
                 UvTransform.ToKhr(f.RepeatU, f.RepeatV, f.OffsetU, f.OffsetV, f.Rotation, out float[] off, out float[] scale, out _);
                 m.BaseColorTexture.Offset = off;
@@ -363,14 +371,9 @@ internal static class FaceMaterials
             }
             else
             {
-                // rotation with unequal repeats: the extension cannot say it, so the face's UVs carry the viewer's
-                // transform and the extension is the identity
-                m.BaseColorTexture.Offset = new[] { 0f, 0f };
-                m.BaseColorTexture.Rotation = 0f;
-                m.BaseColorTexture.Scale = new[] { 1f, 1f };
-                extras["khrTextureTransformExact"] = true;
-                extras["uvTransformBaked"] = true;
-                bakedUv = true;
+                // the exact mapping is in TEXCOORD_1, so the texture reads it as it is
+                m.BaseColorTexture.TexCoord = 1;
+                extras["khrTextureTransformExact"] = false;
             }
         }
 

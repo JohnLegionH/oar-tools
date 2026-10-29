@@ -26,7 +26,7 @@ public class CleanGeometryRestoreTests
     [Fact]
     public void ACleanedSetCarriesTheStampAndRestoresUntouchedWithParityAndEveryEntryIdentical()
     {
-        Lset l = new Lset();
+        Lset l = new Lset(clean: true);
         ExportStamp stamp = GlbFile.PeekStamp(l.GlbPath);
         Assert.NotNull(stamp);
         Assert.Equal("0.2", stamp.Version);
@@ -60,7 +60,7 @@ public class CleanGeometryRestoreTests
     [Fact]
     public void AStampNamingAVersionThisBuildDoesNotKnowIsRefusedWithAMessageThatSaysSo()
     {
-        Lset l = new Lset();
+        Lset l = new Lset(clean: true);
         byte[] glb = File.ReadAllBytes(l.GlbPath);
         string text = Encoding.Latin1.GetString(glb);
         string from = "\"oarExport\":{\"version\":\"0.2\"";

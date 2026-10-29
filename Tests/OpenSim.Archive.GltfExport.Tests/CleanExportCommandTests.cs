@@ -51,7 +51,7 @@ public class CleanExportCommandTests
     {
         string dir = NewFolder();
         string archive = Path.Combine(dir, "sphere.oar");
-        File.WriteAllBytes(archive, Oar(("sphere", ObjectXml(new PartSpec { Name = "Sphere", Shape = Box(profileCurve: 5, pathCurve: 32) }))));
+        File.WriteAllBytes(archive, Oar(("sphere", ObjectXml(new PartSpec { Name = "Sphere", Id = OpenMetaverse.UUID.Parse("c1ea0000-0000-4000-8000-000000000002"), Shape = Box(profileCurve: 5, pathCurve: 32) }))));
         string output = Path.Combine(dir, "out");
         // the command's own messages go into the failure text, so a failing run says why (for example a missing native image library)
         TextWriter savedOut = Console.Out, savedError = Console.Error;

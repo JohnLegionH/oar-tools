@@ -28,7 +28,8 @@ internal sealed class Lset
     public readonly bool World;
 
     /// <param name="scriptIn">Name of the part ("Root", "A", "B" or "C") that holds a script, or null for a linkset with no script.</param>
-    public Lset(bool world = false, string scriptIn = null, string rootRotation = "0,0,0,1", int childPhysics = -1)
+    /// <param name="clean">Export with cleaning on (the export's default is to write the geometry as built).</param>
+    public Lset(bool world = false, string scriptIn = null, string rootRotation = "0,0,0,1", int childPhysics = -1, bool clean = false)
     {
         World = world;
         Directory.CreateDirectory(Dir);
@@ -46,7 +47,7 @@ internal sealed class Lset
         }
         Archive = EligibilityKit.WriteArchive(new List<List<KitPart>> { new List<KitPart> { Root, A, B, C } }, assets);
         GlbDir = Path.Combine(Dir, "glb");
-        ExportSummary export = ArchiveExporter.Export(Archive, new ExportOptions { OutputDirectory = GlbDir, ImageCheck = () => null, World = world });
+        ExportSummary export = ArchiveExporter.Export(Archive, new ExportOptions { OutputDirectory = GlbDir, ImageCheck = () => null, World = world, Clean = clean });
         Assert.Equal(0, export.ExitCode);
     }
 

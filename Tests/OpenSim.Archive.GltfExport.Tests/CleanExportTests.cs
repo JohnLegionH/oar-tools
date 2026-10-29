@@ -78,13 +78,15 @@ public class CleanExportTests
     private static int Bits(float x) => BitConverter.SingleToInt32Bits(x + 0f);
 
     // The expected hashes are of the file the exporter writes with cleaning off, which holds the faces as the viewer tessellates them
-    // (their match with the viewer's own volume code is in ViewerGeometryTests); they change whenever that tessellation does.
+    // (their match with the viewer's own volume code is in ViewerGeometryTests); they change whenever that tessellation does or a field is
+    // added to the node, mesh or material extras (the geometry itself is pinned bit for bit in ExportFidelityTests).
     [Theory]
-    [InlineData("box-hollow-cut", "f503eab577e007a2bf7294cf868de5edc3f7e5c8ec42ebd9e05e19240ca17a00")]
-    [InlineData("sphere", "83ce643a29d488cbccd5569fda72f2870af8c5b27b7cb5e86aabda55377f9093")]
+    [InlineData("box-hollow-cut", "a164b0b8a36bfd348f94f0b0e247b7460508a9768790453a166c32446cc79d2e")]
+    [InlineData("sphere", "03090e075b0427bbe6851b69d517598ff36259e77e845be9d80f9d5ffffa8f85")]
     public void WithCleaningOffTheFileIsByteForByteWhatTheExporterWroteBeforeCleaningExisted(string shape, string expectedSha256)
     {
-        Assert.Equal(expectedSha256, Convert.ToHexString(SHA256.HashData(BuildGlb(shape, clean: false))).ToLowerInvariant());
+        string actual = Convert.ToHexString(SHA256.HashData(BuildGlb(shape, clean: false))).ToLowerInvariant();
+        Assert.True(expectedSha256 == actual, "the file hashes to " + actual + ", not " + expectedSha256);
     }
 
     [Theory]
