@@ -510,7 +510,9 @@ public class SharedLayoutTests
     {
         Case c = MakeArchive();
         int calls = 0;
-        ArchiveExporter.BeforeBuild = g => { if (++calls == 3) throw FullDiskError(); };
+        // the hook is process wide: it counts only this archive's builds, not those of tests running in other collections
+        string[] own = { "One", "Two", "Three", "Mesh" };
+        ArchiveExporter.BeforeBuild = g => { if (Array.IndexOf(own, g.Name) >= 0 && Interlocked.Increment(ref calls) == 3) throw FullDiskError(); };
         ExportSummary s;
         try { s = Run(c); }
         finally { ArchiveExporter.BeforeBuild = null; }
