@@ -69,6 +69,15 @@ internal static class ViewerVolume
     private static float Lerp(float a, float b, float u) => a + (b - a) * u;
 
     // the point a fraction of the way from a to b, worked out as a + (b - a) * u, which is not always the same float as a * (1 - u) + b * u
+    // A rotation about an axis. The sine and cosine of the half angle are taken in double precision and rounded once to float, so
+    // the same angle gives the same rotation on every platform (the single precision library functions differ in the last bit).
+    private static Quaternion AxisAngle(Vector3 axis, float angle)
+    {
+        double half = (double)angle * 0.5;
+        float sin = (float)Math.Sin(half), cos = (float)Math.Cos(half);
+        return new Quaternion(axis.X * sin, axis.Y * sin, axis.Z * sin, cos);
+    }
+
     private static Vector3 Between(Vector3 a, Vector3 b, float u) => a + (b - a) * u;
 
     // The viewer multiplies the sine or cosine of a float angle, taken in double precision, by a float and rounds once to float; doing
@@ -359,7 +368,7 @@ internal static class ViewerVolume
             {
                 Position = new Vector3(Lerp(0f, p.PathShearX, t), Lerp(0f, p.PathShearY, t), t - 0.5f),
                 Scale = new Vector2(Lerp(beginX, endX, t), Lerp(beginY, endY, t)),
-                First = Quaternion.CreateFromAxisAngle(Vector3.UnitZ, Lerp(MathF.PI * p.PathTwistBegin, MathF.PI * p.PathTwist, t)),
+                First = AxisAngle(Vector3.UnitZ, Lerp(MathF.PI * p.PathTwistBegin, MathF.PI * p.PathTwist, t)),
                 Then = Quaternion.Identity,
                 TexT = t
             });
@@ -406,8 +415,8 @@ internal static class ViewerVolume
             {
                 Position = new Vector3(Lerp(0f, p.PathShearX, s) + Lerp(-skew, skew, t) * 0.5f, c + Lerp(0f, p.PathShearY, s), s),
                 Scale = new Vector2(holeX * Lerp(taperXBegin, taperXEnd, t), holeY * Lerp(taperYBegin, taperYEnd, t)),
-                First = Quaternion.CreateFromAxisAngle(Vector3.UnitZ, Lerp(p.PathTwistBegin, p.PathTwist, t) * 2f * MathF.PI - MathF.PI),
-                Then = Quaternion.CreateFromAxisAngle(Vector3.UnitX, ang),
+                First = AxisAngle(Vector3.UnitZ, Lerp(p.PathTwistBegin, p.PathTwist, t) * 2f * MathF.PI - MathF.PI),
+                Then = AxisAngle(Vector3.UnitX, ang),
                 TexT = t
             });
         }
