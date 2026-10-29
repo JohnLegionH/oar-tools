@@ -18,7 +18,10 @@ namespace OarTools.ViewerVolume.Tests;
 public class LicenceTests
 {
     // Files that re-express a function of the viewer's volume code; they carry the viewer's own notice.
-    private static readonly string[] Derived = { "ViewerVolume.cs", "ViewerFaceRule.cs", "SculptGeometry.cs", "SculptVolume.cs", "ViewerPointCounts.cs" };
+    private static readonly string[] Derived = { "ViewerVolume.cs", "ViewerFaceRule.cs", "SculptGeometry.cs", "SculptVolume.cs", "ViewerPointCounts.cs", "ViewerTextureMapping.cs" };
+
+    // The year each source file's notice gives (the "firstyear" of the viewer's $LicenseInfo line): llface.cpp 2001, the rest llvolume.cpp 2002.
+    private static string FirstYear(string file) => file == "ViewerTextureMapping.cs" ? "2001" : "2002";
 
     private static string Root()
     {
@@ -56,7 +59,7 @@ public class LicenceTests
             Assert.True(File.Exists(path), name + " is missing");
             string head = Head(path);
             Assert.Contains("Copyright (C) 2010, Linden Research, Inc.", head);
-            Assert.Contains("$LicenseInfo:firstyear=2002&license=viewerlgpl$", head);
+            Assert.Contains("$LicenseInfo:firstyear=" + FirstYear(name) + "&license=viewerlgpl$", head);
             Assert.Contains("Linden Research, Inc., 945 Battery Street, San Francisco, CA  94111  USA", head);
             Assert.Contains("Adapted 2026 by Legion Builds", head);
         }

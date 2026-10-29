@@ -14,7 +14,7 @@ using static OpenSim.Archive.GltfExport.Tests.TestKit;
 
 namespace OpenSim.Archive.GltfExport.Tests;
 
-/// <summary>A face whose texture has a rotation and unequal repeats has the viewer's transform baked into its texture coordinates.</summary>
+/// <summary>A face whose texture has a rotation and unequal repeats keeps its original coordinates in TEXCOORD_0 and has the viewer's transform in TEXCOORD_1.</summary>
 public class BakedUvTests
 {
     private static readonly UUID Tex = UUID.Parse("a0000000-0000-4000-8000-0000000000a1");
@@ -47,8 +47,8 @@ public class BakedUvTests
         throw new InvalidOperationException("no face " + face);
     }
 
-    private static float[] UvsOfFace(Glb glb, int face) =>
-        glb.Floats(PrimitiveOfFace(glb, face).GetProperty("attributes").GetProperty("TEXCOORD_0").GetInt32());
+    private static float[] UvsOfFace(Glb glb, int face, string set = "TEXCOORD_0") =>
+        glb.Floats(PrimitiveOfFace(glb, face).GetProperty("attributes").Req(set).GetInt32());
 
     private static JsonElement MaterialOfFace(Glb glb, int face) =>
         glb.Root.GetProperty("materials")[PrimitiveOfFace(glb, face).GetProperty("material").GetInt32()];
@@ -64,14 +64,15 @@ public class BakedUvTests
     }
 
     [Fact]
-    public void ARotatedFaceWithUnequalRepeatsHasTheViewersTransformInItsCoordinates()
+    public void ARotatedFaceWithUnequalRepeatsHasTheViewersTransformInTexCoord1AndItsOriginalMapInTexCoord0()
     {
         // the same shape with no transform gives the raw coordinates
         Glb control = ReadGlb(File.ReadAllBytes(Export(1f, 1f, 0f)));
         Glb baked = ReadGlb(File.ReadAllBytes(Export(4f, 2f, 0.6f)));
 
-        float[] raw = UvsOfFace(control, 1), got = UvsOfFace(baked, 1);
+        float[] raw = UvsOfFace(control, 1), got = UvsOfFace(baked, 1, "TEXCOORD_1"), first = UvsOfFace(baked, 1);
         Assert.Equal(raw.Length, got.Length);
+        Assert.Equal(raw.Select(BitConverter.SingleToInt32Bits), first.Select(BitConverter.SingleToInt32Bits));
         // the stored offset and rotation are 16-bit steps, so use the values the baked face's extras report
         JsonElement x = MaterialOfFace(baked, 1).GetProperty("extras");
         float[] rep = x.GetProperty("repeat").EnumerateArray().Select(e => e.GetSingle()).ToArray();
@@ -87,17 +88,16 @@ public class BakedUvTests
     }
 
     [Fact]
-    public void ABakedFaceHasAnIdentityExtensionAndKeepsEverySlValueInExtras()
+    public void AFaceOnTexCoord1HasNoTransformExtensionAndKeepsEverySlValueInExtras()
     {
         Glb glb = ReadGlb(File.ReadAllBytes(Export(4f, 2f, 0.6f)));
         JsonElement m = MaterialOfFace(glb, 1);
-        JsonElement t = m.GetProperty("pbrMetallicRoughness").GetProperty("baseColorTexture").GetProperty("extensions").GetProperty("KHR_texture_transform");
-        Assert.Equal(new[] { 0f, 0f }, t.GetProperty("offset").EnumerateArray().Select(e => e.GetSingle()).ToArray());
-        Assert.Equal(new[] { 1f, 1f }, t.GetProperty("scale").EnumerateArray().Select(e => e.GetSingle()).ToArray());
-        Assert.Equal(0f, t.GetProperty("rotation").GetSingle());
+        JsonElement tex = m.GetProperty("pbrMetallicRoughness").GetProperty("baseColorTexture");
+        Assert.Equal(1, tex.Req("texCoord").GetInt32());
+        Assert.False(tex.TryGetProperty("extensions", out _));
 
         JsonElement x = m.GetProperty("extras");
-        Assert.True(x.GetProperty("uvTransformBaked").GetBoolean());
+        Assert.Equal("TEXCOORD_1", x.Req("uvSet").GetString());
         Assert.Equal(new[] { 4f, 2f }, x.GetProperty("repeat").EnumerateArray().Select(e => e.GetSingle()).ToArray());
         Assert.Equal(0.6f, x.GetProperty("rotation").GetSingle(), 3);
         Assert.Equal(0.1f, x.GetProperty("offset")[0].GetSingle(), 3);
@@ -113,7 +113,7 @@ public class BakedUvTests
         {
             Glb glb = ReadGlb(File.ReadAllBytes(path));
             JsonElement x = MaterialOfFace(glb, 1).GetProperty("extras");
-            Assert.False(x.TryGetProperty("uvTransformBaked", out _));
+            Assert.Equal("TEXCOORD_0", x.Req("uvSet").GetString());
             Assert.True(x.GetProperty("khrTextureTransformExact").GetBoolean());
         }
         Glb scaled = ReadGlb(File.ReadAllBytes(unrotated));

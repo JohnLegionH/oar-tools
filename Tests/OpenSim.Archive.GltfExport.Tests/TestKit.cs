@@ -27,6 +27,8 @@ internal static class TestKit
         public UUID Id = UUID.Random();
         public int Link = 0;
         public UUID Creator = Alice;
+        /// <summary>The creator data text the archive holds beside the creator id ("home;First Last"); empty for none.</summary>
+        public string CreatorData = "";
         public UUID Owner = Alice;
         public Vector3 Offset = Vector3.Zero;
         public Quaternion Rotation = Quaternion.Identity;
@@ -63,6 +65,8 @@ internal static class TestKit
         StringBuilder sb = new StringBuilder();
         sb.Append("<SceneObjectPart xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\">");
         sb.Append("<CreatorID><UUID>").Append(p.Creator).Append("</UUID></CreatorID>");
+        if (p.CreatorData.Length > 0)
+            sb.Append("<CreatorData>").Append(System.Security.SecurityElement.Escape(p.CreatorData)).Append("</CreatorData>");
         sb.Append("<UUID><UUID>").Append(p.Id).Append("</UUID></UUID>");
         sb.Append("<Name>").Append(System.Security.SecurityElement.Escape(p.Name)).Append("</Name>");
         sb.Append(Vec("GroupPosition", new Vector3(10, 20, 30)));
@@ -221,5 +225,15 @@ internal static class TestKit
             bin = r.ReadBytes((int)binLen);
         }
         return new Glb { Json = doc, Bin = bin };
+    }
+}
+
+internal static class JsonAssertions
+{
+    /// <summary>The named property, or an assertion failure that says it is missing (so a red run fails on an assertion, not on an exception).</summary>
+    public static JsonElement Req(this JsonElement element, string name)
+    {
+        Xunit.Assert.True(element.ValueKind == JsonValueKind.Object && element.TryGetProperty(name, out JsonElement value), "the property '" + name + "' is missing");
+        return element.GetProperty(name);
     }
 }

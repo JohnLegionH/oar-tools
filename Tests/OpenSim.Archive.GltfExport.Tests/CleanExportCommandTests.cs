@@ -12,7 +12,7 @@ using static OpenSim.Archive.GltfExport.Tests.TestKit;
 
 namespace OpenSim.Archive.GltfExport.Tests;
 
-/// <summary>The oar-export command line: cleaning is on unless --no-clean is given, and --version names the version. Redirects the console, so it shares a collection with the other classes that do.</summary>
+/// <summary>The oar-export command line: the geometry is written as built unless --clean is given (--no-clean is accepted and does nothing), and --version names the version. Redirects the console, so it shares a collection with the other classes that do.</summary>
 [Collection("console-output")]
 public class CleanExportCommandTests
 {
@@ -66,17 +66,38 @@ public class CleanExportCommandTests
     }
 
     [Fact]
-    public void WithoutAnyOptionTheFileIsCleanedAndStamped()
+    public void WithoutAnyOptionTheFileIsWrittenAsBuiltWithoutAStamp()
     {
-        Assert.True(ExportWith().Root.GetProperty("asset").GetProperty("extras").GetProperty("oarExport").GetProperty("clean").GetBoolean());
+        Glb glb = ExportWith();
+        Assert.False(glb.Root.GetProperty("asset").TryGetProperty("extras", out _));
+        Assert.False(glb.Root.GetProperty("meshes")[0].GetProperty("primitives")[0].TryGetProperty("indices", out _));
     }
 
     [Fact]
-    public void NoCleanWritesTheFileWithoutCleaningAndWithoutAStamp()
+    public void CleanWritesTheFileCleanedAndStamped()
     {
-        Glb glb = ExportWith("--no-clean");
-        Assert.False(glb.Root.GetProperty("asset").TryGetProperty("extras", out _));
-        Assert.False(glb.Root.GetProperty("meshes")[0].GetProperty("primitives")[0].TryGetProperty("indices", out _));
+        Glb glb = ExportWith("--clean");
+        Assert.True(glb.Root.GetProperty("asset").GetProperty("extras").GetProperty("oarExport").GetProperty("clean").GetBoolean());
+        Assert.True(glb.Root.GetProperty("meshes")[0].GetProperty("primitives")[0].TryGetProperty("indices", out _));
+    }
+
+    [Fact]
+    public void NoCleanIsStillAcceptedAndChangesNothing()
+    {
+        Glb withFlag = ExportWith("--no-clean");
+        Glb without = ExportWith();
+        Assert.Equal(without.Json.RootElement.GetRawText(), withFlag.Json.RootElement.GetRawText());
+        Assert.Equal(without.Bin, withFlag.Bin);
+    }
+
+    [Fact]
+    public void TheHelpSaysCleanIsOptInAndNoCleanDoesNothing()
+    {
+        (int exit, string output) = Run("--help");
+        Assert.Equal(0, exit);
+        Assert.Contains("[--clean]", output);
+        Assert.Contains("--no-clean           accepted and ignored", output);
+        Assert.Contains("--clean              remove duplicate and loose vertices", output);
     }
 
     [Fact]
