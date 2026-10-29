@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The code in this project re-implements the Second Life viewer's volume generation and is licensed LGPL-2.1 only, as the
+       viewer's is (see LICENSES/LGPL-2.1.txt and THIRD-PARTY-NOTICES.txt). The rest of the repository is BSD-3-Clause. -->
+  <PropertyGroup>
+    <AssemblyTitle>OarTools.ViewerVolume</AssemblyTitle>
+    <Description>The Second Life viewer's prim and sculpt tessellation, in C#. LGPL-2.1.</Description>
+    <Copyright>Linden Research, Inc.; Legion Builds</Copyright>
+    <PackageLicenseExpression>LGPL-2.1-only</PackageLicenseExpression>
+    <Nullable>disable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../Source/OpenSim.Archive.Inspection/OpenSim.Archive.Inspection.csproj" />
+    <ProjectReference Include="../../Source/OpenSim.Framework/OpenSim.Framework.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="OpenSim.Archive.GltfExport" />
+    <InternalsVisibleTo Include="OpenSim.Archive.GltfExport.Tests" />
+    <InternalsVisibleTo Include="OarTools.ViewerVolume.Tests" />
+  </ItemGroup>
+</Project>

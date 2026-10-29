@@ -4,6 +4,12 @@
 
 ### Changed
 
+* **The viewer's volume code is its own project, licensed as the viewer's is.** The code that re-implements the Second Life
+  viewer's volume generation (`ViewerVolume`, `ViewerFaceRule`, the sculpt geometry and the point counts of a path and a profile)
+  moved into `Source/OarTools.ViewerVolume`, an assembly of its own licensed LGPL-2.1 only, with the viewer's copyright notice
+  kept in each file. The rest of the repository is unchanged (BSD-3-Clause). The LGPL text is in `LICENSES/LGPL-2.1.txt`, in
+  `THIRD-PARTY-NOTICES.txt` and in both packages.
+
 * **The exported geometry is what the viewer draws.** Prims and sculpts are tessellated as the Second Life viewer does at its
   highest level of detail: its points on the profile and path, its faces in its order, its triangles, normals and texture
   coordinates. The export used to build far fewer vertices (two triangles on a box side where the viewer has eighteen), and built the

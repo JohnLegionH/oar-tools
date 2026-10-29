@@ -130,7 +130,19 @@ that code with the changes listed in `CHANGELOG.md`.
   as functions of a prim shape.
 * `Source/OpenSim.Archive.ScriptScan/Lsl/LSL_Constants.cs` is OpenSim's LSL constants file, copied without a code change.
 * The geometry in the glTF export is the Second Life viewer's own tessellation at its highest level of detail, with its face
-  numbering (`ViewerFaceRule`); see `docs/GEOMETRY.md` for how it was checked and where it stops.
+  numbering (`ViewerFaceRule`); see `docs/GEOMETRY.md` for how it was checked and where it stops. The code that does it
+  re-implements the viewer's volume code and lives in its own project, `Source/OarTools.ViewerVolume` (see Licences).
 
 Every file carried from OpenSim keeps OpenSim's notice, and a file we changed says "Adapted 2026 by Legion Builds" below it.
-The licences are described in `LICENSE`; the libraries that are bundled are in `THIRD-PARTY-NOTICES.txt`.
+
+## Licences
+
+This repository is BSD-3-Clause (`LICENSE`), except for one project: `Source/OarTools.ViewerVolume`, which is licensed
+LGPL-2.1 only (`LICENSES/LGPL-2.1.txt`). It re-implements, in C#, the Second Life viewer's volume generation
+(`indra/llmath/llvolume.cpp`), so its files keep the viewer's notice (Copyright (C) 2010, Linden Research, Inc., LGPL version 2.1
+only) with "Adapted 2026 by Legion Builds" below it. The full source of the program is in this repository, so anyone can change
+that library and rebuild the program; the package carries it as its own assembly, `OarTools.ViewerVolume.dll`. The viewer
+reference data under `Tests/OpenSim.Archive.GltfExport.Tests/Fixtures/ViewerReference` is output generated with the viewer's
+volume code and used as test data.
+
+The licence texts, and the libraries that are bundled, are in `THIRD-PARTY-NOTICES.txt`.

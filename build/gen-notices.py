@@ -104,6 +104,20 @@ def licence_text(pid, base, info):
     return '(no licence text could be found for this package; its declared licence is "%s")' % lic
 
 
+
+# the one project of this repository that is not BSD-3-Clause: it re-implements the Second Life viewer's volume code
+LGPL_ITEM_HEAD = ('-' * 100 + '\nSecond Life Viewer Source Code, GNU Lesser General Public License 2.1 only, for Source/OarTools.ViewerVolume\n' + '-' * 100 + '\n'
+                  'Source/OarTools.ViewerVolume re-implements, in C#, the volume generation of the Second Life viewer (indra/llmath/llvolume.cpp):\n'
+                  'the profile and path points, the faces, their triangles, normals and texture coordinates, and the sculpt grid. Its files carry the\n'
+                  "viewer's notice: Second Life Viewer Source Code, Copyright (C) 2010, Linden Research, Inc., licensed under version 2.1 of the\n"
+                  'GNU Lesser General Public License only, and Adapted 2026 by Legion Builds. That project is licensed LGPL-2.1 only; the rest of\n'
+                  'this repository is BSD-3-Clause. The full source of the program is in this repository, so anyone can change that library and\n'
+                  'rebuild the program. The licence text follows.\n\n')
+
+FIXTURE_ITEM = ('-' * 100 + "\nTest data generated with the Second Life viewer's volume code\n" + '-' * 100 + '\n'
+                'The geometry fixtures under Tests/OpenSim.Archive.GltfExport.Tests/Fixtures/ViewerReference are output generated with the Second Life\n'
+                "viewer's volume code (indra/llmath/llvolume.cpp, Copyright (C) 2010, Linden Research, Inc., LGPL-2.1 only), built unchanged, and are used\n"
+                'as test data. They hold numbers (vertices, normals, texture coordinates and triangles), not viewer source.\n')
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--nuget', required=True)
@@ -157,6 +171,8 @@ def main():
                + text_of(os.path.join(ROOT, 'ThirdPartyLicenses', 'OpenSimulator.txt')) + '\n')
     out.append('-' * 100 + '\nMozilla Public License 2.0, for the files whose header names it\n' + '-' * 100 + '\n'
                + text_of(os.path.join(ROOT, 'LICENSES', 'MPL-2.0.txt')) + '\n')
+    out.append(LGPL_ITEM_HEAD + text_of(os.path.join(ROOT, 'LICENSES', 'LGPL-2.1.txt')) + '\n')
+    out.append(FIXTURE_ITEM)
     open(a.out, 'w', encoding='utf-8', newline='\n').write('\n'.join(out))
 
 

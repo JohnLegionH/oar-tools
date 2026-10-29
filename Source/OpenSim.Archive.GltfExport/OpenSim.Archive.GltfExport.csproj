@@ -11,6 +11,7 @@
     <ProjectReference Include="../../Source/OpenSim.Framework/OpenSim.Framework.csproj" />
     <ProjectReference Include="../../Source/OpenSim.Archive.Inspection/OpenSim.Archive.Inspection.csproj" />
     <ProjectReference Include="../../Source/OpenSim.MeshAsset/OpenSim.MeshAsset.csproj" />
+    <ProjectReference Include="../../Source/OarTools.ViewerVolume/OarTools.ViewerVolume.csproj" />
   </ItemGroup>
 
   <ItemGroup>

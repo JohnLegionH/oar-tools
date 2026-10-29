@@ -22,7 +22,7 @@ import zipfile
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WRAPPED = ('inspect', 'export', 'restore', 'convert')
 FIXED_TIME = 1704067200  # 2024-01-01 00:00:00 UTC; any fixed value does
-DOCS = ('README.md', 'CHANGELOG.md', 'LICENSE', 'THIRD-PARTY-NOTICES.txt', os.path.join('LICENSES', 'MPL-2.0.txt'))
+DOCS = ('README.md', 'CHANGELOG.md', 'LICENSE', 'THIRD-PARTY-NOTICES.txt', os.path.join('LICENSES', 'MPL-2.0.txt'), os.path.join('LICENSES', 'LGPL-2.1.txt'))
 
 
 def version_from_source():
