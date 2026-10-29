@@ -77,7 +77,7 @@ now:
 | `oar-compare` | `oar-tools compare` |
 | `oar-scan` | `oar-tools scan` |
 | `oar-eligibility` | `oar-tools eligibility` |
-| `oar-convert --fix-perms`, `--creator` | removed (changing permissions is outside what this tool does) |
+| `oar-convert --fix-perms`, `--creator` | removed (changing permissions and importing new content are out of scope for this tool) |
 | `oar-import`, `oar-texfetch` | removed |
 
 The options of each subcommand are those of the program it replaces. For this release the package holds a wrapper script for

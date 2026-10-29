@@ -39,6 +39,8 @@ The tools move into their own repository and become one program.
 
 ### Removed
 
+Changing permissions and importing new content are out of scope for this tool, so `--fix-perms` and `oar-import` are not part of it.
+
 * **`oar-convert --fix-perms` and `--creator`**, and the code behind them. oar-tools never adds a permission bit.
 * **`oar-import`** (the importer that wrote full-permission objects from `.glb` files).
 * **`oar-texfetch`** (the texture fetch through a grid login) and `region-texture-check.py`.
