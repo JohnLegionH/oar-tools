@@ -77,9 +77,11 @@ public class CleanExportTests
 
     private static int Bits(float x) => BitConverter.SingleToInt32Bits(x + 0f);
 
+    // The expected hashes are of the file the exporter writes with cleaning off, which holds the faces as the viewer tessellates them
+    // (their match with the viewer's own volume code is in ViewerGeometryTests); they change whenever that tessellation does.
     [Theory]
-    [InlineData("box-hollow-cut", "f954042312e8a76bd6fc51b5b83b23a6366d861db7b86339cf5521accf6fe002")]
-    [InlineData("sphere", "2ef880e0d48724935a41b1578699c77dc641f3196b3c53eb6f5481b43cb69bb6")]
+    [InlineData("box-hollow-cut", "f503eab577e007a2bf7294cf868de5edc3f7e5c8ec42ebd9e05e19240ca17a00")]
+    [InlineData("sphere", "83ce643a29d488cbccd5569fda72f2870af8c5b27b7cb5e86aabda55377f9093")]
     public void WithCleaningOffTheFileIsByteForByteWhatTheExporterWroteBeforeCleaningExisted(string shape, string expectedSha256)
     {
         Assert.Equal(expectedSha256, Convert.ToHexString(SHA256.HashData(BuildGlb(shape, clean: false))).ToLowerInvariant());
@@ -186,7 +188,8 @@ public class CleanExportTests
             if (clean)
                 part = JsonDocument.Parse(File.ReadAllText(Path.Combine(folder, "manifest.json"))).RootElement.GetProperty("parts")[0].Clone();
         }
-        Assert.Equal(12, triangles[0]);
+        // a box at the viewer's highest level of detail: 18 triangles on each of its six faces
+        Assert.Equal(108, triangles[0]);
         Assert.Equal(triangles[0], triangles[1]);
         Assert.Equal(new[] { 0, 1, 2, 3, 4, 5 }, part.GetProperty("uncleanedFaces").EnumerateArray().Select(e => e.GetInt32()).ToArray());
     }

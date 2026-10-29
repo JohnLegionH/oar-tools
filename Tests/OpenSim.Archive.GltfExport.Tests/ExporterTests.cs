@@ -76,7 +76,8 @@ public class ExporterTests
     [Fact]
     public void TextureCoordinatesPutTheTopOfTheImageAtTheTopOfASide()
     {
-        // glTF puts v = 0 at the top row of an image: the top edge of a box side is at v = 0, the bottom edge at v = 1
+        // glTF puts v = 0 at the top row of an image: the top edge of a box side is at v = 0, the bottom edge at v = 1, and v runs
+        // in step with the height in between (the sides have rows of points between the two edges)
         Glb glb = ReadGlb(Build(Group(Part("Box", 0))).Glb);
         JsonElement mesh = glb.Root.GetProperty("meshes")[0];
         int sides = 0;
@@ -87,11 +88,15 @@ public class ExporterTests
                 continue;
             float[] pos = glb.Floats(prim.GetProperty("attributes").GetProperty("POSITION").GetInt32());
             float[] uv = glb.Floats(prim.GetProperty("attributes").GetProperty("TEXCOORD_0").GetInt32());
+            HashSet<float> rows = new HashSet<float>();
             for (int i = 0; i < pos.Length / 3; i++)
             {
                 float height = pos[i * 3 + 1]; // glTF y is the prim's z
-                Assert.Equal(height > 0 ? 0f : 1f, uv[i * 2 + 1], 3);
+                Assert.Equal(0.5f - height, uv[i * 2 + 1], 3);
+                rows.Add(MathF.Round(height, 3));
             }
+            // the viewer puts four rows of points up the side of a box at its highest level of detail
+            Assert.Equal(4, rows.Count);
             sides++;
         }
         Assert.Equal(4, sides);

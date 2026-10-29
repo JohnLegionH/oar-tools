@@ -180,11 +180,12 @@ public class FaceNumberingTests
     [Fact]
     public void AHollowShapeHasNoWebBetweenItsOuterAndInnerWalls()
     {
-        // box hollowed: top ring 8, four sides of 2, inner wall 4 sides of 2, bottom ring 8
-        Assert.Equal(new[] { 8, 2, 2, 2, 2, 8, 8 }, PrimGeometry.BuildFaces(Make("box", "hollow")).Select(f => f.TriangleCount));
-        // cylinder: 24 sides, so a ring of 48 triangles at each end and a wall of 48
-        Assert.Equal(new[] { 48, 48, 48, 48 }, PrimGeometry.BuildFaces(Make("cylinder", "hollow")).Select(f => f.TriangleCount));
-        Assert.Equal(new[] { 48, 48, 48, 48 }, PrimGeometry.BuildFaces(Make("cylinder", "hollow+path-cut")).Select(f => f.TriangleCount));
+        // The viewer's own counts at its highest level of detail (checked against its volume code, see ViewerGeometryTests).
+        // box hollowed: top ring 22, four sides of 18 (3 x 3 quads), inner wall 72 (its flat pieces do not share vertices), bottom ring 22
+        Assert.Equal(new[] { 22, 18, 18, 18, 18, 72, 22 }, PrimGeometry.BuildFaces(Make("box", "hollow")).Select(f => f.TriangleCount));
+        // cylinder: 24 sides, so a ring of 48 triangles at each end and walls of 144 (4 rows of points on the path)
+        Assert.Equal(new[] { 48, 144, 144, 48 }, PrimGeometry.BuildFaces(Make("cylinder", "hollow")).Select(f => f.TriangleCount));
+        Assert.Equal(new[] { 48, 144, 144, 48 }, PrimGeometry.BuildFaces(Make("cylinder", "hollow+path-cut")).Select(f => f.TriangleCount));
     }
 
     // ------------------------------------------------------------ what each face is, by where its triangles lie

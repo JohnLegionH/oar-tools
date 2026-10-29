@@ -54,6 +54,9 @@ public static partial class SculptGeometry
     /// wall of a hollow, the cap at the near end, and the two flat faces along a profile cut. Each face keeps its number even
     /// when another has no area.
     /// </summary>
+    /// <summary>A sculpt's faces at a viewer detail scale (1, 1.5, 2.5 or 4). Not built yet: no faces.</summary>
+    public static SculptResult BuildVolume(SculptMap map, int sculptType, PrimParams p, float detail) => new SculptResult();
+
     public static SculptResult BuildVolume(SculptMap map, int sculptType, PrimParams p)
     {
         // The viewer's own rows and columns are generated whenever the profile and path are circles, even for a plain sculpt: the

@@ -5,3 +5,8 @@ wrappers/oar-convert text eol=lf
 wrappers/*.cmd text eol=crlf
 *.sh text eol=lf
 build/*.sh text eol=lf
+
+# test data for the geometry comparison with the viewer: compressed text and raw sculpt maps are kept byte for byte
+Tests/OpenSim.Archive.GltfExport.Tests/Fixtures/ViewerReference/*.gz binary
+Tests/OpenSim.Archive.GltfExport.Tests/Fixtures/ViewerReference/maps/*.rgb binary
+Tests/OpenSim.Archive.GltfExport.Tests/Fixtures/ViewerReference/*.tsv text eol=lf

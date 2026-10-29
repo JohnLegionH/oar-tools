@@ -123,6 +123,17 @@ public enum DetailLevel { Low, Medium, High }
 
 public static class PrimGeometry
 {
+    /// <summary>The viewer's detail scale at its highest level of detail (the last of its four: 1, 1.5, 2.5 and 4).</summary>
+    public const float HighestDetail = 4f;
+
+    /// <summary>Shape to faces at a viewer detail scale (1, 1.5, 2.5 or 4). Not built yet: no faces.</summary>
+    public static List<PrimFace> BuildFaces(PrimParams p, float detail, out int faceCount, out int unnumberedTriangles)
+    {
+        faceCount = 0;
+        unnumberedTriangles = 0;
+        return new List<PrimFace>();
+    }
+
     private static int CircleSides(DetailLevel lod) => lod == DetailLevel.Low ? 6 : lod == DetailLevel.Medium ? 12 : 24;
 
     /// <summary>Builds and extrudes the mesh for a shape in viewer mode.</summary>
