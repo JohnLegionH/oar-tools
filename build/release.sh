@@ -1,6 +1,8 @@
 #!/bin/sh
 # Copyright (c) 2026 Legion Builds. BSD-3-Clause, see LICENSE.
-# Builds the release packages: the Windows zip and the Linux tar.gz with SHA256SUMS.txt. Nothing is uploaded.
+# Builds the release packages: the Windows zip and the Linux tar.gz with SHA256SUMS.txt, and keeps the folder each is made from
+# as <output folder>/stage/<package name>/ with STAGED-FILES.txt (digest and size of every staged file). Nothing is uploaded.
+# The output folder must be new: a stage folder that already exists is refused.
 # usage: build/release.sh <output folder> [work folder]
 # The folders are given as paths the dotnet tool understands (D:/work/x on Windows, /work/x on Linux).
 # THIRD-PARTY-NOTICES.txt is regenerated from the published programs' dependency lists when python and the NuGet cache are

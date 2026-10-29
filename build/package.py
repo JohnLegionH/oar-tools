@@ -4,6 +4,9 @@
 usage: python build/package.py --win <publish folder> --linux <publish folder> --out <output folder> [--version 0.5.0]
 
 Writes oar-tools-<version>-windows-x64.zip, oar-tools-<version>-linux-x64.tar.gz and SHA256SUMS.txt into the output folder.
+Also keeps the files each archive is made from as stage/<package name>/ beside them, and writes STAGED-FILES.txt (SHA-256, size and
+path of every staged file), so a release check can run the staged program and then compare the archives with exactly those files.
+The output folder must not already hold a stage folder for the package (build into a fresh folder).
 Each archive holds one top folder with the program, the native libraries it loads, the wrapper scripts for the old program names,
 and the licence files. Times, owners and modes are fixed, so the same input gives the same archive. Debug symbols are left out.
 """
@@ -46,6 +49,18 @@ def program_files(folder, windows):
     return out
 
 
+def write_stage(out, top, files):
+    """Keeps the files of one package as out/stage/<top>/. Returns (path in the list, bytes) for each."""
+    folder = os.path.join(out, 'stage', top)
+    os.makedirs(folder)
+    staged = []
+    for name, data, _ in files:
+        with open(os.path.join(folder, name), 'wb') as f:
+            f.write(data)
+        staged.append((top + '/' + name, data))
+    return staged
+
+
 def write_zip(path, top, files):
     with zipfile.ZipFile(path, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as z:
         for name, data, _ in files:
@@ -80,10 +95,19 @@ def main():
     version = a.version or version_from_source()
     os.makedirs(a.out, exist_ok=True)
 
+    win_top, lin_top = 'oar-tools-%s-windows-x64' % version, 'oar-tools-%s-linux-x64' % version
+    for top in (win_top, lin_top):
+        if os.path.exists(os.path.join(a.out, 'stage', top)):
+            raise SystemExit('stage folder for %s already exists in %s; build into a fresh output folder' % (top, a.out))
     zip_path = os.path.join(a.out, 'oar-tools-%s-windows-x64.zip' % version)
     tgz_path = os.path.join(a.out, 'oar-tools-%s-linux-x64.tar.gz' % version)
-    write_zip(zip_path, 'oar-tools-%s-windows-x64' % version, program_files(a.win, True))
-    write_targz(tgz_path, 'oar-tools-%s-linux-x64' % version, program_files(a.linux, False))
+    win_files, lin_files = program_files(a.win, True), program_files(a.linux, False)
+    staged = write_stage(a.out, win_top, win_files) + write_stage(a.out, lin_top, lin_files)
+    write_zip(zip_path, win_top, win_files)
+    write_targz(tgz_path, lin_top, lin_files)
+    with open(os.path.join(a.out, 'STAGED-FILES.txt'), 'w', encoding='utf-8', newline='\n') as f:
+        for name, data in staged:
+            f.write('%s  %d  %s\n' % (hashlib.sha256(data).hexdigest(), len(data), name))
 
     lines = []
     for p in (zip_path, tgz_path):
