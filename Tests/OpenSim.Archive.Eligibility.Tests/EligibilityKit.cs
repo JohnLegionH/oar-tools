@@ -18,6 +18,8 @@ internal sealed class KitItem
     public string Name;
     public Guid Asset;
     public int Type = 10;
+    /// <summary>The item's permission masks as stored; the defaults are full base and current permissions and the usual next-owner set.</summary>
+    public uint BasePermissions = 2147483647, CurrentPermissions = 2147483647, EveryonePermissions, GroupPermissions, NextPermissions = 581632;
 }
 
 /// <summary>One part of a fixture archive, with the fields the eligibility rules read.</summary>
@@ -46,7 +48,7 @@ internal sealed class KitPart
     public string ExtraParams = "";
     /// <summary>The TextureEntry element, base64; the default is a block of zeros.</summary>
     public string TextureEntry = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
-    public uint BaseMask = 2147483647, OwnerMask = 2147483647, EveryoneMask;
+    public uint BaseMask = 2147483647, OwnerMask = 2147483647, EveryoneMask, GroupMask, NextOwnerMask = 581632;
     public List<KitItem> Items = new List<KitItem>();
     /// <summary>Further elements of the part (sit target, hover text, surface material ...), written as they are.</summary>
     public string ExtraXml = "";
@@ -75,17 +77,17 @@ internal static class EligibilityKit
         {
             sb.Append("<TaskInventoryItem>");
             sb.Append("<AssetID><UUID>").Append(it.Asset).Append("</UUID></AssetID>");
-            sb.Append("<BasePermissions>2147483647</BasePermissions><CreationDate>1700000000</CreationDate>");
+            sb.Append("<BasePermissions>").Append(it.BasePermissions).Append("</BasePermissions><CreationDate>1700000000</CreationDate>");
             sb.Append("<CreatorID><UUID>").Append(p.Creator).Append("</UUID></CreatorID>");
-            sb.Append("<Description>d</Description><EveryonePermissions>0</EveryonePermissions><Flags>0</Flags>");
+            sb.Append("<Description>d</Description><EveryonePermissions>").Append(it.EveryonePermissions).Append("</EveryonePermissions><Flags>0</Flags>");
             sb.Append("<GroupID><UUID>").Append(Guid.Empty).Append("</UUID></GroupID>");
-            sb.Append("<GroupPermissions>0</GroupPermissions><InvType>").Append(it.Type == 10 ? 10 : 7).Append("</InvType>");
+            sb.Append("<GroupPermissions>").Append(it.GroupPermissions).Append("</GroupPermissions><InvType>").Append(it.Type == 10 ? 10 : 7).Append("</InvType>");
             sb.Append("<ItemID><UUID>").Append(it.Id).Append("</UUID></ItemID>");
             sb.Append("<OldItemID><UUID>").Append(Guid.Empty).Append("</UUID></OldItemID>");
             sb.Append("<LastOwnerID><UUID>").Append(p.Owner).Append("</UUID></LastOwnerID>");
-            sb.Append("<Name>").Append(it.Name).Append("</Name><NextPermissions>581632</NextPermissions>");
+            sb.Append("<Name>").Append(it.Name).Append("</Name><NextPermissions>").Append(it.NextPermissions).Append("</NextPermissions>");
             sb.Append("<OwnerID><UUID>").Append(p.Owner).Append("</UUID></OwnerID>");
-            sb.Append("<CurrentPermissions>2147483647</CurrentPermissions>");
+            sb.Append("<CurrentPermissions>").Append(it.CurrentPermissions).Append("</CurrentPermissions>");
             sb.Append("<ParentID><UUID>").Append(p.Id).Append("</UUID></ParentID><ParentPartID><UUID>").Append(p.Id).Append("</UUID></ParentPartID>");
             sb.Append("<PermsGranter><UUID>").Append(Guid.Empty).Append("</UUID></PermsGranter><PermsMask>0</PermsMask>");
             sb.Append("<Type>").Append(it.Type).Append("</Type><OwnerChanged>false</OwnerChanged>");
@@ -127,8 +129,8 @@ internal static class EligibilityKit
         string[] sc = p.Scale.Split(',');
         sb.Append("<Scale><X>").Append(sc[0]).Append("</X><Y>").Append(sc[1]).Append("</Y><Z>").Append(sc[2]).Append("</Z></Scale>");
         sb.Append("<OwnerID><UUID>").Append(p.Owner).Append("</UUID></OwnerID><GroupID><UUID>").Append(Guid.Empty).Append("</UUID></GroupID>");
-        sb.Append("<BaseMask>").Append(p.BaseMask).Append("</BaseMask><OwnerMask>").Append(p.OwnerMask).Append("</OwnerMask><GroupMask>0</GroupMask><EveryoneMask>")
-          .Append(p.EveryoneMask).Append("</EveryoneMask><NextOwnerMask>581632</NextOwnerMask>");
+        sb.Append("<BaseMask>").Append(p.BaseMask).Append("</BaseMask><OwnerMask>").Append(p.OwnerMask).Append("</OwnerMask><GroupMask>").Append(p.GroupMask).Append("</GroupMask><EveryoneMask>")
+          .Append(p.EveryoneMask).Append("</EveryoneMask><NextOwnerMask>").Append(p.NextOwnerMask).Append("</NextOwnerMask>");
         sb.Append(p.ExtraXml);
         sb.Append("</SceneObjectPart>");
         return sb.ToString();
