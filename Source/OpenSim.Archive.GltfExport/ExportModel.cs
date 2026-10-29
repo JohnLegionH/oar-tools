@@ -312,29 +312,46 @@ public sealed class ExportSummary
     public List<SummaryBuild> BuildList { get; set; } = new List<SummaryBuild>();
 }
 
-/// <summary>The export-permission rule of the archive inspector: only a creator's explicit refusal blocks a part.</summary>
+/// <summary>
+/// The export-permission rule, shared by the glTF export and by the converter. It judges a part as if its owner asked
+/// to export it, as Firestorm does on a grid that does not advertise export support (LLPermissions::allowOpenSimExportBy
+/// in llinventory/llpermissions.h for a grid that does; the full-permissions policy in newview/fsexportperms.cpp for one
+/// that does not).
+/// </summary>
 public static class ExportPermission
 {
     private const uint ExportBit = (uint)OpenMetaverse.PermissionMask.Export;
+    private const uint FullBits = (uint)(OpenMetaverse.PermissionMask.Modify | OpenMetaverse.PermissionMask.Copy | OpenMetaverse.PermissionMask.Transfer);
 
     /// <summary>
-    /// A part held by someone other than its creator is refused when its base mask carries the export right and
-    /// neither the owner nor the everyone mask grants it (after a transfer the creator's choice stays in the everyone
-    /// mask). Parts held by their creator, library content, parts with no known creator or owner, and parts whose base
-    /// mask has no export bit (archives saved before the bit existed) are allowed.
+    /// The owner who is also the creator may export. For any other part: when its base mask carries the export right,
+    /// the owner mask or the everyone mask must grant it (after a transfer the creator's choice stays in the everyone
+    /// mask); when its base mask does not carry the export right (older content), the owner mask must have modify, copy
+    /// and transfer. Nothing else passes automatically: library content and parts with an unknown creator or owner are
+    /// checked the same way, and an unknown creator is never taken to be the unknown owner.
     /// </summary>
     public static bool IsAllowed(PartRecord p, out string reason)
+        => IsAllowed(p.Creator, p.OwnerId, p.Masks, out reason);
+
+    /// <summary>The same rule for a creator, an owner id and masks that may be missing (a missing mask counts as no rights).</summary>
+    public static bool IsAllowed(CreatorRef creator, OpenMetaverse.UUID owner, PermissionMasks masks, out string reason)
     {
         reason = null;
-        CreatorRef creator = p.Creator;
-        if (creator.IsLibrary || p.OwnerId == OpenMetaverse.UUID.Zero || creator.Id == OpenMetaverse.UUID.Zero || creator.Id == p.OwnerId)
+        if (creator != null && creator.Id != OpenMetaverse.UUID.Zero && creator.Id == owner)
             return true;
-        PermissionMasks m = p.Masks;
-        if (!m.Base.HasValue || (m.Base.Value & ExportBit) == 0)
+        uint baseMask = masks?.Base ?? 0;
+        uint ownerMask = masks?.Owner ?? 0;
+        uint everyoneMask = masks?.Everyone ?? 0;
+        if ((baseMask & ExportBit) != 0)
+        {
+            if ((ownerMask & ExportBit) != 0 || (everyoneMask & ExportBit) != 0)
+                return true;
+            reason = "creator did not allow export: the part is held by someone other than its creator, its base mask has the export right, and neither its owner nor its everyone mask grants it";
+            return false;
+        }
+        if ((ownerMask & FullBits) == FullBits)
             return true;
-        if (((m.Owner ?? 0) & ExportBit) != 0 || ((m.Everyone ?? 0) & ExportBit) != 0)
-            return true;
-        reason = "creator did not allow export: the part is held by someone other than its creator, its base mask has the export right, and neither its owner nor its everyone mask grants it";
+        reason = "creator did not allow export: the part is held by someone other than its creator, its base mask has no export right, and its owner mask lacks modify, copy or transfer";
         return false;
     }
 }

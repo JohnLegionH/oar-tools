@@ -28,7 +28,6 @@ public sealed class ArchiveEligibility
     private const int PCodePrim = 9;
     private const int SculptTypeMesh = 5;
     private const int SculptTypeGltf = 6;
-    private const uint ExportBit = (uint)PermissionMask.Export;
 
     private readonly EligibilityOptions m_options;
 
@@ -292,19 +291,11 @@ public sealed class ArchiveEligibility
     }
 
     /// <summary>
-    /// The creator's export right. A part held by someone other than its creator may be exported only when the owner or
-    /// everyone mask carries the export bit; the same rule the inspector uses for its export finding. A part with no export
-    /// information in its base mask, or whose creator is unknown, is not refused.
+    /// The creator's export right, judged as if the owner asked to export the part: the same rule the glTF export uses
+    /// (<see cref="ExportPermission"/>). A part that fails it stays a prim.
     /// </summary>
     private static string ExportDenied(PartFacts f)
     {
-        CreatorRef creator = f.Creator;
-        PermissionMasks m = f.Masks;
-        if (creator == null || m == null || creator.IsLibrary || f.OwnerId == UUID.Zero || creator.Id == UUID.Zero || creator.Id == f.OwnerId)
-            return null;
-        if (!m.Base.HasValue || (m.Base.Value & ExportBit) == 0)
-            return null;
-        bool allowed = ((m.Owner ?? 0) & ExportBit) != 0 || ((m.Everyone ?? 0) & ExportBit) != 0;
-        return allowed ? null : "the creator did not allow export (the export right is in the base mask but in neither the owner nor the everyone mask)";
+        return ExportPermission.IsAllowed(f.Creator, f.OwnerId, f.Masks, out string reason) ? null : reason;
     }
 }
