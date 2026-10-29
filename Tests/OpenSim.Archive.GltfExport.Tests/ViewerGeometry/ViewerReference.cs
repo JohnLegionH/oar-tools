@@ -107,15 +107,33 @@ public static class ViewerReference
         return list;
     }
 
-    /// <summary>The sculpt cases: name, sculpt type byte (stitching with the mirror and invert flags), map size and the map's file.</summary>
-    public static List<(string Name, int Type, int Width, int Height, string MapFile)> LoadSculpts(string fileName)
+    /// <summary>A sculpt case: its type byte (stitching with the mirror and invert flags), map, and the profile and path cuts of the prim.</summary>
+    public sealed class SculptCase
     {
-        List<(string, int, int, int, string)> list = new List<(string, int, int, int, string)>();
+        public string Name, MapFile;
+        public int Type, Width, Height;
+        public ShapeData Shape;
+    }
+
+    /// <summary>The sculpt cases: name, sculpt type byte, map size and file, and the stored fields of the prim's profile (curve with hole type, cut, hollow) and path cut.</summary>
+    public static List<SculptCase> LoadSculpts(string fileName)
+    {
+        List<SculptCase> list = new List<SculptCase>();
         string[] lines = File.ReadAllLines(Path.Combine(FixtureDirectory, fileName));
         for (int i = 1; i < lines.Length; i++)
         {
             string[] c = lines[i].Split('	');
-            list.Add((c[0], int.Parse(c[1], CultureInfo.InvariantCulture), int.Parse(c[2], CultureInfo.InvariantCulture), int.Parse(c[3], CultureInfo.InvariantCulture), c[4]));
+            int N(int k) => int.Parse(c[k], CultureInfo.InvariantCulture);
+            list.Add(new SculptCase
+            {
+                Name = c[0], Type = N(1), Width = N(2), Height = N(3), MapFile = c[4],
+                // a circle profile on a circular path, with the cuts and the hollow the case names; the path scale of 100 is a hole size of 1
+                Shape = new ShapeData
+                {
+                    ProfileCurve = N(5), PathCurve = 32, ProfileBegin = N(6), ProfileEnd = N(7), ProfileHollow = N(8),
+                    PathBegin = N(9), PathEnd = N(10), PathScaleX = 100, PathScaleY = 100
+                }
+            });
         }
         return list;
     }

@@ -1,81 +1,117 @@
-name	type	width	height	map
-sculpt-sphere-32x32-plain	1	32	32	maps/sphere-32x32.rgb
-sculpt-sphere-32x32-mirror	129	32	32	maps/sphere-32x32.rgb
-sculpt-sphere-32x32-invert	65	32	32	maps/sphere-32x32.rgb
-sculpt-sphere-32x32-mirror-invert	193	32	32	maps/sphere-32x32.rgb
-sculpt-sphere-64x64-plain	1	64	64	maps/sphere-64x64.rgb
-sculpt-sphere-64x64-mirror	129	64	64	maps/sphere-64x64.rgb
-sculpt-sphere-64x64-invert	65	64	64	maps/sphere-64x64.rgb
-sculpt-sphere-64x64-mirror-invert	193	64	64	maps/sphere-64x64.rgb
-sculpt-sphere-64x16-plain	1	64	16	maps/sphere-64x16.rgb
-sculpt-sphere-64x16-mirror	129	64	16	maps/sphere-64x16.rgb
-sculpt-sphere-64x16-invert	65	64	16	maps/sphere-64x16.rgb
-sculpt-sphere-64x16-mirror-invert	193	64	16	maps/sphere-64x16.rgb
-sculpt-sphere-16x64-plain	1	16	64	maps/sphere-16x64.rgb
-sculpt-sphere-16x64-mirror	129	16	64	maps/sphere-16x64.rgb
-sculpt-sphere-16x64-invert	65	16	64	maps/sphere-16x64.rgb
-sculpt-sphere-16x64-mirror-invert	193	16	64	maps/sphere-16x64.rgb
-sculpt-sphere-128x32-plain	1	128	32	maps/sphere-128x32.rgb
-sculpt-sphere-128x32-mirror	129	128	32	maps/sphere-128x32.rgb
-sculpt-sphere-128x32-invert	65	128	32	maps/sphere-128x32.rgb
-sculpt-sphere-128x32-mirror-invert	193	128	32	maps/sphere-128x32.rgb
-sculpt-torus-32x32-plain	2	32	32	maps/torus-32x32.rgb
-sculpt-torus-32x32-mirror	130	32	32	maps/torus-32x32.rgb
-sculpt-torus-32x32-invert	66	32	32	maps/torus-32x32.rgb
-sculpt-torus-32x32-mirror-invert	194	32	32	maps/torus-32x32.rgb
-sculpt-torus-64x64-plain	2	64	64	maps/torus-64x64.rgb
-sculpt-torus-64x64-mirror	130	64	64	maps/torus-64x64.rgb
-sculpt-torus-64x64-invert	66	64	64	maps/torus-64x64.rgb
-sculpt-torus-64x64-mirror-invert	194	64	64	maps/torus-64x64.rgb
-sculpt-torus-64x16-plain	2	64	16	maps/torus-64x16.rgb
-sculpt-torus-64x16-mirror	130	64	16	maps/torus-64x16.rgb
-sculpt-torus-64x16-invert	66	64	16	maps/torus-64x16.rgb
-sculpt-torus-64x16-mirror-invert	194	64	16	maps/torus-64x16.rgb
-sculpt-torus-16x64-plain	2	16	64	maps/torus-16x64.rgb
-sculpt-torus-16x64-mirror	130	16	64	maps/torus-16x64.rgb
-sculpt-torus-16x64-invert	66	16	64	maps/torus-16x64.rgb
-sculpt-torus-16x64-mirror-invert	194	16	64	maps/torus-16x64.rgb
-sculpt-torus-128x32-plain	2	128	32	maps/torus-128x32.rgb
-sculpt-torus-128x32-mirror	130	128	32	maps/torus-128x32.rgb
-sculpt-torus-128x32-invert	66	128	32	maps/torus-128x32.rgb
-sculpt-torus-128x32-mirror-invert	194	128	32	maps/torus-128x32.rgb
-sculpt-plane-32x32-plain	3	32	32	maps/plane-32x32.rgb
-sculpt-plane-32x32-mirror	131	32	32	maps/plane-32x32.rgb
-sculpt-plane-32x32-invert	67	32	32	maps/plane-32x32.rgb
-sculpt-plane-32x32-mirror-invert	195	32	32	maps/plane-32x32.rgb
-sculpt-plane-64x64-plain	3	64	64	maps/plane-64x64.rgb
-sculpt-plane-64x64-mirror	131	64	64	maps/plane-64x64.rgb
-sculpt-plane-64x64-invert	67	64	64	maps/plane-64x64.rgb
-sculpt-plane-64x64-mirror-invert	195	64	64	maps/plane-64x64.rgb
-sculpt-plane-64x16-plain	3	64	16	maps/plane-64x16.rgb
-sculpt-plane-64x16-mirror	131	64	16	maps/plane-64x16.rgb
-sculpt-plane-64x16-invert	67	64	16	maps/plane-64x16.rgb
-sculpt-plane-64x16-mirror-invert	195	64	16	maps/plane-64x16.rgb
-sculpt-plane-16x64-plain	3	16	64	maps/plane-16x64.rgb
-sculpt-plane-16x64-mirror	131	16	64	maps/plane-16x64.rgb
-sculpt-plane-16x64-invert	67	16	64	maps/plane-16x64.rgb
-sculpt-plane-16x64-mirror-invert	195	16	64	maps/plane-16x64.rgb
-sculpt-plane-128x32-plain	3	128	32	maps/plane-128x32.rgb
-sculpt-plane-128x32-mirror	131	128	32	maps/plane-128x32.rgb
-sculpt-plane-128x32-invert	67	128	32	maps/plane-128x32.rgb
-sculpt-plane-128x32-mirror-invert	195	128	32	maps/plane-128x32.rgb
-sculpt-cylinder-32x32-plain	4	32	32	maps/cylinder-32x32.rgb
-sculpt-cylinder-32x32-mirror	132	32	32	maps/cylinder-32x32.rgb
-sculpt-cylinder-32x32-invert	68	32	32	maps/cylinder-32x32.rgb
-sculpt-cylinder-32x32-mirror-invert	196	32	32	maps/cylinder-32x32.rgb
-sculpt-cylinder-64x64-plain	4	64	64	maps/cylinder-64x64.rgb
-sculpt-cylinder-64x64-mirror	132	64	64	maps/cylinder-64x64.rgb
-sculpt-cylinder-64x64-invert	68	64	64	maps/cylinder-64x64.rgb
-sculpt-cylinder-64x64-mirror-invert	196	64	64	maps/cylinder-64x64.rgb
-sculpt-cylinder-64x16-plain	4	64	16	maps/cylinder-64x16.rgb
-sculpt-cylinder-64x16-mirror	132	64	16	maps/cylinder-64x16.rgb
-sculpt-cylinder-64x16-invert	68	64	16	maps/cylinder-64x16.rgb
-sculpt-cylinder-64x16-mirror-invert	196	64	16	maps/cylinder-64x16.rgb
-sculpt-cylinder-16x64-plain	4	16	64	maps/cylinder-16x64.rgb
-sculpt-cylinder-16x64-mirror	132	16	64	maps/cylinder-16x64.rgb
-sculpt-cylinder-16x64-invert	68	16	64	maps/cylinder-16x64.rgb
-sculpt-cylinder-16x64-mirror-invert	196	16	64	maps/cylinder-16x64.rgb
-sculpt-cylinder-128x32-plain	4	128	32	maps/cylinder-128x32.rgb
-sculpt-cylinder-128x32-mirror	132	128	32	maps/cylinder-128x32.rgb
-sculpt-cylinder-128x32-invert	68	128	32	maps/cylinder-128x32.rgb
-sculpt-cylinder-128x32-mirror-invert	196	128	32	maps/cylinder-128x32.rgb
+name	type	width	height	map	pc	pb	pe	ph	pathb	pathe
+sculpt-sphere-32x32-plain	1	32	32	maps/sphere-32x32.rgb	0	0	0	0	0	0
+sculpt-sphere-32x32-mirror	129	32	32	maps/sphere-32x32.rgb	0	0	0	0	0	0
+sculpt-sphere-32x32-invert	65	32	32	maps/sphere-32x32.rgb	0	0	0	0	0	0
+sculpt-sphere-32x32-mirror-invert	193	32	32	maps/sphere-32x32.rgb	0	0	0	0	0	0
+sculpt-sphere-32x32-hollow	1	32	32	maps/sphere-32x32.rgb	0	0	0	20000	0	0
+sculpt-sphere-32x32-hollow-square	1	32	32	maps/sphere-32x32.rgb	32	0	0	20000	0	0
+sculpt-sphere-32x32-profilecut	1	32	32	maps/sphere-32x32.rgb	0	12500	12500	0	0	0
+sculpt-sphere-32x32-pathcut	1	32	32	maps/sphere-32x32.rgb	0	0	0	0	10000	10000
+sculpt-sphere-32x32-hollow+pathcut	1	32	32	maps/sphere-32x32.rgb	0	0	0	20000	10000	10000
+sculpt-sphere-32x32-hollow+profilecut	1	32	32	maps/sphere-32x32.rgb	0	12500	12500	20000	0	0
+sculpt-sphere-64x64-plain	1	64	64	maps/sphere-64x64.rgb	0	0	0	0	0	0
+sculpt-sphere-64x64-mirror	129	64	64	maps/sphere-64x64.rgb	0	0	0	0	0	0
+sculpt-sphere-64x64-invert	65	64	64	maps/sphere-64x64.rgb	0	0	0	0	0	0
+sculpt-sphere-64x64-mirror-invert	193	64	64	maps/sphere-64x64.rgb	0	0	0	0	0	0
+sculpt-sphere-64x64-hollow	1	64	64	maps/sphere-64x64.rgb	0	0	0	20000	0	0
+sculpt-sphere-64x64-hollow-square	1	64	64	maps/sphere-64x64.rgb	32	0	0	20000	0	0
+sculpt-sphere-64x64-profilecut	1	64	64	maps/sphere-64x64.rgb	0	12500	12500	0	0	0
+sculpt-sphere-64x64-pathcut	1	64	64	maps/sphere-64x64.rgb	0	0	0	0	10000	10000
+sculpt-sphere-64x64-hollow+pathcut	1	64	64	maps/sphere-64x64.rgb	0	0	0	20000	10000	10000
+sculpt-sphere-64x64-hollow+profilecut	1	64	64	maps/sphere-64x64.rgb	0	12500	12500	20000	0	0
+sculpt-sphere-64x16-plain	1	64	16	maps/sphere-64x16.rgb	0	0	0	0	0	0
+sculpt-sphere-64x16-mirror	129	64	16	maps/sphere-64x16.rgb	0	0	0	0	0	0
+sculpt-sphere-64x16-invert	65	64	16	maps/sphere-64x16.rgb	0	0	0	0	0	0
+sculpt-sphere-64x16-mirror-invert	193	64	16	maps/sphere-64x16.rgb	0	0	0	0	0	0
+sculpt-sphere-16x64-plain	1	16	64	maps/sphere-16x64.rgb	0	0	0	0	0	0
+sculpt-sphere-16x64-mirror	129	16	64	maps/sphere-16x64.rgb	0	0	0	0	0	0
+sculpt-sphere-16x64-invert	65	16	64	maps/sphere-16x64.rgb	0	0	0	0	0	0
+sculpt-sphere-16x64-mirror-invert	193	16	64	maps/sphere-16x64.rgb	0	0	0	0	0	0
+sculpt-sphere-128x32-plain	1	128	32	maps/sphere-128x32.rgb	0	0	0	0	0	0
+sculpt-sphere-128x32-mirror	129	128	32	maps/sphere-128x32.rgb	0	0	0	0	0	0
+sculpt-sphere-128x32-invert	65	128	32	maps/sphere-128x32.rgb	0	0	0	0	0	0
+sculpt-sphere-128x32-mirror-invert	193	128	32	maps/sphere-128x32.rgb	0	0	0	0	0	0
+sculpt-sphere-128x32-hollow	1	128	32	maps/sphere-128x32.rgb	0	0	0	20000	0	0
+sculpt-sphere-128x32-hollow-square	1	128	32	maps/sphere-128x32.rgb	32	0	0	20000	0	0
+sculpt-sphere-128x32-profilecut	1	128	32	maps/sphere-128x32.rgb	0	12500	12500	0	0	0
+sculpt-sphere-128x32-pathcut	1	128	32	maps/sphere-128x32.rgb	0	0	0	0	10000	10000
+sculpt-sphere-128x32-hollow+pathcut	1	128	32	maps/sphere-128x32.rgb	0	0	0	20000	10000	10000
+sculpt-sphere-128x32-hollow+profilecut	1	128	32	maps/sphere-128x32.rgb	0	12500	12500	20000	0	0
+sculpt-torus-32x32-plain	2	32	32	maps/torus-32x32.rgb	0	0	0	0	0	0
+sculpt-torus-32x32-mirror	130	32	32	maps/torus-32x32.rgb	0	0	0	0	0	0
+sculpt-torus-32x32-invert	66	32	32	maps/torus-32x32.rgb	0	0	0	0	0	0
+sculpt-torus-32x32-mirror-invert	194	32	32	maps/torus-32x32.rgb	0	0	0	0	0	0
+sculpt-torus-32x32-hollow	2	32	32	maps/torus-32x32.rgb	0	0	0	20000	0	0
+sculpt-torus-32x32-hollow-square	2	32	32	maps/torus-32x32.rgb	32	0	0	20000	0	0
+sculpt-torus-32x32-profilecut	2	32	32	maps/torus-32x32.rgb	0	12500	12500	0	0	0
+sculpt-torus-32x32-pathcut	2	32	32	maps/torus-32x32.rgb	0	0	0	0	10000	10000
+sculpt-torus-32x32-hollow+pathcut	2	32	32	maps/torus-32x32.rgb	0	0	0	20000	10000	10000
+sculpt-torus-32x32-hollow+profilecut	2	32	32	maps/torus-32x32.rgb	0	12500	12500	20000	0	0
+sculpt-torus-64x64-plain	2	64	64	maps/torus-64x64.rgb	0	0	0	0	0	0
+sculpt-torus-64x64-mirror	130	64	64	maps/torus-64x64.rgb	0	0	0	0	0	0
+sculpt-torus-64x64-invert	66	64	64	maps/torus-64x64.rgb	0	0	0	0	0	0
+sculpt-torus-64x64-mirror-invert	194	64	64	maps/torus-64x64.rgb	0	0	0	0	0	0
+sculpt-torus-64x64-hollow	2	64	64	maps/torus-64x64.rgb	0	0	0	20000	0	0
+sculpt-torus-64x64-hollow-square	2	64	64	maps/torus-64x64.rgb	32	0	0	20000	0	0
+sculpt-torus-64x64-profilecut	2	64	64	maps/torus-64x64.rgb	0	12500	12500	0	0	0
+sculpt-torus-64x64-pathcut	2	64	64	maps/torus-64x64.rgb	0	0	0	0	10000	10000
+sculpt-torus-64x64-hollow+pathcut	2	64	64	maps/torus-64x64.rgb	0	0	0	20000	10000	10000
+sculpt-torus-64x64-hollow+profilecut	2	64	64	maps/torus-64x64.rgb	0	12500	12500	20000	0	0
+sculpt-torus-64x16-plain	2	64	16	maps/torus-64x16.rgb	0	0	0	0	0	0
+sculpt-torus-64x16-mirror	130	64	16	maps/torus-64x16.rgb	0	0	0	0	0	0
+sculpt-torus-64x16-invert	66	64	16	maps/torus-64x16.rgb	0	0	0	0	0	0
+sculpt-torus-64x16-mirror-invert	194	64	16	maps/torus-64x16.rgb	0	0	0	0	0	0
+sculpt-torus-16x64-plain	2	16	64	maps/torus-16x64.rgb	0	0	0	0	0	0
+sculpt-torus-16x64-mirror	130	16	64	maps/torus-16x64.rgb	0	0	0	0	0	0
+sculpt-torus-16x64-invert	66	16	64	maps/torus-16x64.rgb	0	0	0	0	0	0
+sculpt-torus-16x64-mirror-invert	194	16	64	maps/torus-16x64.rgb	0	0	0	0	0	0
+sculpt-torus-128x32-plain	2	128	32	maps/torus-128x32.rgb	0	0	0	0	0	0
+sculpt-torus-128x32-mirror	130	128	32	maps/torus-128x32.rgb	0	0	0	0	0	0
+sculpt-torus-128x32-invert	66	128	32	maps/torus-128x32.rgb	0	0	0	0	0	0
+sculpt-torus-128x32-mirror-invert	194	128	32	maps/torus-128x32.rgb	0	0	0	0	0	0
+sculpt-torus-128x32-hollow	2	128	32	maps/torus-128x32.rgb	0	0	0	20000	0	0
+sculpt-torus-128x32-hollow-square	2	128	32	maps/torus-128x32.rgb	32	0	0	20000	0	0
+sculpt-torus-128x32-profilecut	2	128	32	maps/torus-128x32.rgb	0	12500	12500	0	0	0
+sculpt-torus-128x32-pathcut	2	128	32	maps/torus-128x32.rgb	0	0	0	0	10000	10000
+sculpt-torus-128x32-hollow+pathcut	2	128	32	maps/torus-128x32.rgb	0	0	0	20000	10000	10000
+sculpt-torus-128x32-hollow+profilecut	2	128	32	maps/torus-128x32.rgb	0	12500	12500	20000	0	0
+sculpt-plane-32x32-plain	3	32	32	maps/plane-32x32.rgb	0	0	0	0	0	0
+sculpt-plane-32x32-mirror	131	32	32	maps/plane-32x32.rgb	0	0	0	0	0	0
+sculpt-plane-32x32-invert	67	32	32	maps/plane-32x32.rgb	0	0	0	0	0	0
+sculpt-plane-32x32-mirror-invert	195	32	32	maps/plane-32x32.rgb	0	0	0	0	0	0
+sculpt-plane-64x64-plain	3	64	64	maps/plane-64x64.rgb	0	0	0	0	0	0
+sculpt-plane-64x64-mirror	131	64	64	maps/plane-64x64.rgb	0	0	0	0	0	0
+sculpt-plane-64x64-invert	67	64	64	maps/plane-64x64.rgb	0	0	0	0	0	0
+sculpt-plane-64x64-mirror-invert	195	64	64	maps/plane-64x64.rgb	0	0	0	0	0	0
+sculpt-plane-64x16-plain	3	64	16	maps/plane-64x16.rgb	0	0	0	0	0	0
+sculpt-plane-64x16-mirror	131	64	16	maps/plane-64x16.rgb	0	0	0	0	0	0
+sculpt-plane-64x16-invert	67	64	16	maps/plane-64x16.rgb	0	0	0	0	0	0
+sculpt-plane-64x16-mirror-invert	195	64	16	maps/plane-64x16.rgb	0	0	0	0	0	0
+sculpt-plane-16x64-plain	3	16	64	maps/plane-16x64.rgb	0	0	0	0	0	0
+sculpt-plane-16x64-mirror	131	16	64	maps/plane-16x64.rgb	0	0	0	0	0	0
+sculpt-plane-16x64-invert	67	16	64	maps/plane-16x64.rgb	0	0	0	0	0	0
+sculpt-plane-16x64-mirror-invert	195	16	64	maps/plane-16x64.rgb	0	0	0	0	0	0
+sculpt-plane-128x32-plain	3	128	32	maps/plane-128x32.rgb	0	0	0	0	0	0
+sculpt-plane-128x32-mirror	131	128	32	maps/plane-128x32.rgb	0	0	0	0	0	0
+sculpt-plane-128x32-invert	67	128	32	maps/plane-128x32.rgb	0	0	0	0	0	0
+sculpt-plane-128x32-mirror-invert	195	128	32	maps/plane-128x32.rgb	0	0	0	0	0	0
+sculpt-cylinder-32x32-plain	4	32	32	maps/cylinder-32x32.rgb	0	0	0	0	0	0
+sculpt-cylinder-32x32-mirror	132	32	32	maps/cylinder-32x32.rgb	0	0	0	0	0	0
+sculpt-cylinder-32x32-invert	68	32	32	maps/cylinder-32x32.rgb	0	0	0	0	0	0
+sculpt-cylinder-32x32-mirror-invert	196	32	32	maps/cylinder-32x32.rgb	0	0	0	0	0	0
+sculpt-cylinder-64x64-plain	4	64	64	maps/cylinder-64x64.rgb	0	0	0	0	0	0
+sculpt-cylinder-64x64-mirror	132	64	64	maps/cylinder-64x64.rgb	0	0	0	0	0	0
+sculpt-cylinder-64x64-invert	68	64	64	maps/cylinder-64x64.rgb	0	0	0	0	0	0
+sculpt-cylinder-64x64-mirror-invert	196	64	64	maps/cylinder-64x64.rgb	0	0	0	0	0	0
+sculpt-cylinder-64x16-plain	4	64	16	maps/cylinder-64x16.rgb	0	0	0	0	0	0
+sculpt-cylinder-64x16-mirror	132	64	16	maps/cylinder-64x16.rgb	0	0	0	0	0	0
+sculpt-cylinder-64x16-invert	68	64	16	maps/cylinder-64x16.rgb	0	0	0	0	0	0
+sculpt-cylinder-64x16-mirror-invert	196	64	16	maps/cylinder-64x16.rgb	0	0	0	0	0	0
+sculpt-cylinder-16x64-plain	4	16	64	maps/cylinder-16x64.rgb	0	0	0	0	0	0
+sculpt-cylinder-16x64-mirror	132	16	64	maps/cylinder-16x64.rgb	0	0	0	0	0	0
+sculpt-cylinder-16x64-invert	68	16	64	maps/cylinder-16x64.rgb	0	0	0	0	0	0
+sculpt-cylinder-16x64-mirror-invert	196	16	64	maps/cylinder-16x64.rgb	0	0	0	0	0	0
+sculpt-cylinder-128x32-plain	4	128	32	maps/cylinder-128x32.rgb	0	0	0	0	0	0
+sculpt-cylinder-128x32-mirror	132	128	32	maps/cylinder-128x32.rgb	0	0	0	0	0	0
+sculpt-cylinder-128x32-invert	68	128	32	maps/cylinder-128x32.rgb	0	0	0	0	0	0
+sculpt-cylinder-128x32-mirror-invert	196	128	32	maps/cylinder-128x32.rgb	0	0	0	0	0	0

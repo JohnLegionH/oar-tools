@@ -29,11 +29,6 @@ public class ViewerGeometryTests
     private static readonly Lazy<Dictionary<string, ShapeData>> Shapes =
         new Lazy<Dictionary<string, ShapeData>>(() => ViewerReference.LoadShapes("cases.tsv").ToDictionary(s => s.Name, s => s.Shape));
 
-    private static readonly PrimParams PlainSculpt = new PrimParams
-    {
-        ProfileCurve = 0, PathCurve = 32, ProfileEnd = 1f, PathEnd = 1f, PathScaleX = 1f, PathScaleY = 1f, PathRevolutions = 1f
-    };
-
     public static IEnumerable<object[]> PrimCases()
     {
         foreach ((string name, ShapeData _) in ViewerReference.LoadShapes("cases.tsv"))
@@ -43,9 +38,9 @@ public class ViewerGeometryTests
 
     public static IEnumerable<object[]> SculptCases()
     {
-        foreach ((string name, int _, int _, int _, string _) in ViewerReference.LoadSculpts("sculpt-cases.tsv"))
+        foreach (ViewerReference.SculptCase c in ViewerReference.LoadSculpts("sculpt-cases.tsv"))
             for (int lod = 0; lod < 4; lod++)
-                yield return new object[] { lod, name };
+                yield return new object[] { lod, c.Name };
     }
 
     public static IEnumerable<object[]> CleaningCases()
@@ -92,8 +87,8 @@ public class ViewerGeometryTests
     [MemberData(nameof(SculptCases))]
     public void ASculptIsTessellatedAsTheViewerDoesAtEachLevelOfDetail(int level, string name)
     {
-        (string _, int type, int width, int height, string mapFile) = ViewerReference.LoadSculpts("sculpt-cases.tsv").First(s => s.Name == name);
-        SculptResult r = SculptGeometry.BuildVolume(ViewerReference.LoadMap(mapFile, width, height), type, PlainSculpt, ViewerReference.Details[level]);
+        ViewerReference.SculptCase c = ViewerReference.LoadSculpts("sculpt-cases.tsv").First(s => s.Name == name);
+        SculptResult r = SculptGeometry.BuildVolume(ViewerReference.LoadMap(c.MapFile, c.Width, c.Height), c.Type, PrimParams.FromShape(c.Shape), ViewerReference.Details[level]);
         RefCase reference = Reference[level].Value[name];
 
         List<string> bad = Differences(reference, i =>
