@@ -253,6 +253,29 @@ internal sealed class MaterialContext
     public Dictionary<UUID, byte[]> Pngs = new Dictionary<UUID, byte[]>();
 }
 
+/// <summary>One map's mapping on a face: the face's projection (planar or not) and the map's own repeats, offset and rotation.</summary>
+internal sealed class MapMapping
+{
+    public readonly bool Planar;
+    public readonly float RepeatU, RepeatV, OffsetU, OffsetV, Rotation;
+
+    public MapMapping(bool planar, float repeatU, float repeatV, float offsetU, float offsetV, float rotation)
+    {
+        Planar = planar; RepeatU = repeatU; RepeatV = repeatV; OffsetU = offsetU; OffsetV = offsetV; Rotation = rotation;
+    }
+
+    /// <summary>True when TEXCOORD_0 with KHR_texture_transform cannot say this mapping exactly.</summary>
+    public bool NeedsSet => ViewerTextureMapping.NeedsSecondSet(Planar, RepeatU, RepeatV, Rotation);
+
+    /// <summary>
+    /// Two maps with the same key read the same set. A face stores its transform in 16 bits and a legacy material stores its own in
+    /// ten-thousandths, so the same numbers typed in the viewer differ in the last digits; values within a thousandth count as equal.
+    /// </summary>
+    public string Key => string.Join("|", Planar ? "p" : "d", R(RepeatU), R(RepeatV), R(OffsetU), R(OffsetV), R(Rotation));
+
+    private static string R(float v) => MathF.Round(v * 1000f).ToString(System.Globalization.CultureInfo.InvariantCulture);
+}
+
 internal static class FaceMaterials
 {
     private static readonly UUID PlywoodTexture = new UUID("89556747-24cb-43ed-920b-47caed15465f");
@@ -311,12 +334,35 @@ internal static class FaceMaterials
     /// The glTF material for a face, created once per distinct combination of texture and settings. The material's extras
     /// hold every value the face carries, so its name (the texture id) can be changed by a tool without losing anything.
     /// </summary>
-    public static int Material(MaterialContext ctx, FaceSettings f, PartMaterialInfo info, ParsedPart pp, out bool secondSet)
+    public static int Material(MaterialContext ctx, FaceSettings f, PartMaterialInfo info, ParsedPart pp, out List<MapMapping> extraSets)
     {
-        // a planar face, or one rotated with unequal repeats, has its exact mapping in TEXCOORD_1; every other face reads TEXCOORD_0
+        // Each map of the face reads TEXCOORD_0 with KHR_texture_transform when that says its mapping exactly. A planar face, or a
+        // map rotated with unequal repeats, has its exact mapping in an extra set (TEXCOORD_1, 2, ...); maps with the same mapping share one.
         bool planar = f.Mapping == MappingType.Planar;
+        List<MapMapping> sets = new List<MapMapping>();
+        extraSets = sets;
+        JsonObject mapSets = new JsonObject();
+        // the texture coordinate set a map with this mapping reads: 0 when TEXCOORD_0 and the extension are exact, else the extra set holding it
+        int SetOf(string role, MapMapping mapping)
+        {
+            int set = 0;
+            if (mapping.NeedsSet)
+            {
+                int at = sets.FindIndex(x => x.Key == mapping.Key);
+                if (at < 0)
+                {
+                    sets.Add(mapping);
+                    at = sets.Count - 1;
+                }
+                set = at + 1;
+            }
+            mapSets[role] = "TEXCOORD_" + set;
+            return set;
+        }
+        MapMapping diffuseMapping = new MapMapping(planar, f.RepeatU, f.RepeatV, f.OffsetU, f.OffsetV, f.Rotation);
+        int diffuseSet = SetOf("diffuse", diffuseMapping);
         string secondSetReason = ViewerTextureMapping.SecondSetReason(planar, f.RepeatU, f.RepeatV, f.Rotation);
-        secondSet = secondSetReason != null;
+        bool secondSet = diffuseSet != 0;
         JsonObject extras = new JsonObject
         {
             ["kind"] = "face-material",
@@ -331,7 +377,7 @@ internal static class FaceMaterials
             ["bumpmap"] = f.Bump.ToString(),
             ["mapping"] = planar ? "planar" : "default",
             ["media"] = f.MediaFlag,
-            ["uvSet"] = secondSet ? "TEXCOORD_1" : "TEXCOORD_0"
+            ["uvSet"] = "TEXCOORD_" + diffuseSet
         };
         if (secondSet)
             extras["uvSetReason"] = secondSetReason;
@@ -371,8 +417,8 @@ internal static class FaceMaterials
             }
             else
             {
-                // the exact mapping is in TEXCOORD_1, so the texture reads it as it is
-                m.BaseColorTexture.TexCoord = 1;
+                // the exact mapping is in an extra set, so the texture reads it as it is
+                m.BaseColorTexture.TexCoord = diffuseSet;
                 extras["khrTextureTransformExact"] = false;
             }
         }
@@ -411,10 +457,18 @@ internal static class FaceMaterials
                 if (normal != null)
                 {
                     m.NormalTexture = TextureRef(ctx, legacy.NormalMap, normal);
-                    UvTransform.ToKhr(legacy.NormalRepeatX, legacy.NormalRepeatY, legacy.NormalOffsetX, legacy.NormalOffsetY, legacy.NormalRotation, out float[] off, out float[] scale, out _);
-                    m.NormalTexture.Offset = off;
-                    m.NormalTexture.Rotation = legacy.NormalRotation;
-                    m.NormalTexture.Scale = scale;
+                    // the viewer draws a normal map with the face's projection and then the map's own transform
+                    MapMapping normalMapping = new MapMapping(planar, legacy.NormalRepeatX, legacy.NormalRepeatY, legacy.NormalOffsetX, legacy.NormalOffsetY, legacy.NormalRotation);
+                    int normalSet = SetOf("normal", normalMapping);
+                    if (normalSet == 0)
+                    {
+                        UvTransform.ToKhr(legacy.NormalRepeatX, legacy.NormalRepeatY, legacy.NormalOffsetX, legacy.NormalOffsetY, legacy.NormalRotation, out float[] off, out float[] scale, out _);
+                        m.NormalTexture.Offset = off;
+                        m.NormalTexture.Rotation = legacy.NormalRotation;
+                        m.NormalTexture.Scale = scale;
+                    }
+                    else
+                        m.NormalTexture.TexCoord = normalSet;
                 }
             }
             if (legacy.SpecularMap != UUID.Zero)
@@ -453,10 +507,19 @@ internal static class FaceMaterials
                     GltfTextureRef emissive = Fetch(parsed.Emissive, "pbr-emissive");
                     Fetch(parsed.Occlusion, "pbr-occlusion");
                     // a face that names a PBR material has no diffuse texture of its own to keep
-                    if (m.BaseColorTexture == null) m.BaseColorTexture = baseColor;
-                    if (m.NormalTexture == null) m.NormalTexture = normal;
+                    // the textures of a PBR material have no transform of their own here; on a planar face they read the face's projection
+                    MapMapping pbrMapping = new MapMapping(planar, 1f, 1f, 0f, 0f, 0f);
+                    void Place(GltfTextureRef t, string role)
+                    {
+                        if (t != null)
+                            t.TexCoord = SetOf(role, pbrMapping);
+                    }
+                    if (m.BaseColorTexture == null) { m.BaseColorTexture = baseColor; Place(baseColor, "pbr-base-color"); }
+                    if (m.NormalTexture == null) { m.NormalTexture = normal; Place(normal, "pbr-normal"); }
                     m.MetallicRoughnessTexture = mr;
+                    Place(mr, "pbr-metallic-roughness");
                     m.EmissiveTexture = emissive;
+                    Place(emissive, "pbr-emissive");
                     pbr["textures"] = textures;
                 }
             }
@@ -481,6 +544,22 @@ internal static class FaceMaterials
             };
         }
         _ = pp;
+
+        extras["mapUvSets"] = mapSets;
+        if (sets.Count > 0)
+        {
+            JsonArray described = new JsonArray();
+            for (int i = 0; i < sets.Count; i++)
+                described.Add(new JsonObject
+                {
+                    ["set"] = "TEXCOORD_" + (i + 1),
+                    ["mapping"] = sets[i].Planar ? "planar" : "default",
+                    ["repeat"] = Pair(sets[i].RepeatU, sets[i].RepeatV),
+                    ["offset"] = Pair(sets[i].OffsetU, sets[i].OffsetV),
+                    ["rotation"] = Finite(sets[i].Rotation)
+                });
+            extras["extraUvSets"] = described;
+        }
 
         m.Extras = extras;
         string key = extras.ToJsonString();

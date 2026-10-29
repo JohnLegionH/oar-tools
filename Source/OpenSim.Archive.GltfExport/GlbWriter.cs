@@ -57,8 +57,8 @@ internal sealed class GltfPrimitive
     public float[] Positions;
     public float[] Normals;
     public float[] Uvs;
-    /// <summary>The second texture coordinate set (TEXCOORD_1): the face's exact mapping where TEXCOORD_0 and KHR_texture_transform cannot say it; null for most faces.</summary>
-    public float[] Uvs1;
+    /// <summary>The extra texture coordinate sets (TEXCOORD_1, TEXCOORD_2, ...): the exact mappings of the maps that TEXCOORD_0 and KHR_texture_transform cannot say; null for most faces.</summary>
+    public List<float[]> ExtraUvs;
     /// <summary>One value per vertex, written as the application attribute _PRIM_FACE; it keeps the prim face number when a tool merges primitives.</summary>
     public float[] FaceNumbers;
     /// <summary>One value per vertex, written as the application attribute _PART_LINK: the link number of the part the vertex belongs to (0 for a single-part build), so a tool that joins parts' meshes keeps which part each vertex came from.</summary>
@@ -107,21 +107,21 @@ internal sealed class GltfDocument
         List<(int offset, int length, int target)> views = new List<(int, int, int)>();
         List<(int view, int count, string type, float[] min, float[] max, int componentType)> accessors = new List<(int, int, string, float[], float[], int)>();
         // per mesh, per primitive: accessor indices of position, normal, uv, second uv, face number, part link, indices
-        List<List<(int pos, int nor, int uv, int uv1, int face, int link, int idx)>> meshAccessors = new List<List<(int, int, int, int, int, int, int)>>();
+        List<List<(int pos, int nor, int uv, int[] extraUvs, int face, int link, int idx)>> meshAccessors = new List<List<(int, int, int, int[], int, int, int)>>();
 
         foreach (GltfMesh mesh in Meshes)
         {
-            List<(int, int, int, int, int, int, int)> list = new List<(int, int, int, int, int, int, int)>();
+            List<(int, int, int, int[], int, int, int)> list = new List<(int, int, int, int[], int, int, int)>();
             foreach (GltfPrimitive p in mesh.Primitives)
             {
                 int pos = AddFloats(bin, views, accessors, p.Positions, 3, "VEC3", true);
                 int nor = p.Normals != null ? AddFloats(bin, views, accessors, p.Normals, 3, "VEC3", false) : -1;
                 int uv = p.Uvs != null ? AddFloats(bin, views, accessors, p.Uvs, 2, "VEC2", false) : -1;
-                int uv1 = p.Uvs1 != null ? AddFloats(bin, views, accessors, p.Uvs1, 2, "VEC2", false) : -1;
+                int[] extraUvs = p.ExtraUvs != null ? p.ExtraUvs.Select(u => AddFloats(bin, views, accessors, u, 2, "VEC2", false)).ToArray() : Array.Empty<int>();
                 int face = p.FaceNumbers != null ? AddFloats(bin, views, accessors, p.FaceNumbers, 1, "SCALAR", false) : -1;
                 int link = p.PartLinks != null ? AddFloats(bin, views, accessors, p.PartLinks, 1, "SCALAR", false) : -1;
                 int idx = p.Indices != null ? AddIndices(bin, views, accessors, p.Indices, p.Positions.Length / 3) : -1;
-                list.Add((pos, nor, uv, uv1, face, link, idx));
+                list.Add((pos, nor, uv, extraUvs, face, link, idx));
             }
             meshAccessors.Add(list);
         }
@@ -225,7 +225,7 @@ internal sealed class GltfDocument
     }
 
     private byte[] WriteJson(List<(int offset, int length, int target)> views, List<(int view, int count, string type, float[] min, float[] max, int componentType)> accessors,
-        List<List<(int pos, int nor, int uv, int uv1, int face, int link, int idx)>> meshAccessors, List<int> imageViews, int binLength)
+        List<List<(int pos, int nor, int uv, int[] extraUvs, int face, int link, int idx)>> meshAccessors, List<int> imageViews, int binLength)
     {
         using MemoryStream ms = new MemoryStream();
         using (Utf8JsonWriter w = new Utf8JsonWriter(ms, new JsonWriterOptions { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping }))
@@ -297,7 +297,7 @@ internal sealed class GltfDocument
                     for (int p = 0; p < mesh.Primitives.Count; p++)
                     {
                         GltfPrimitive prim = mesh.Primitives[p];
-                        (int pos, int nor, int uv, int uv1, int face, int link, int idx) = meshAccessors[m][p];
+                        (int pos, int nor, int uv, int[] extraUvs, int face, int link, int idx) = meshAccessors[m][p];
                         w.WriteStartObject();
                         w.WriteStartObject("attributes");
                         w.WriteNumber("POSITION", pos);
@@ -305,8 +305,8 @@ internal sealed class GltfDocument
                             w.WriteNumber("NORMAL", nor);
                         if (uv >= 0)
                             w.WriteNumber("TEXCOORD_0", uv);
-                        if (uv1 >= 0)
-                            w.WriteNumber("TEXCOORD_1", uv1);
+                        for (int e = 0; e < extraUvs.Length; e++)
+                            w.WriteNumber("TEXCOORD_" + (e + 1), extraUvs[e]);
                         if (face >= 0)
                             w.WriteNumber("_PRIM_FACE", face);
                         if (link >= 0)

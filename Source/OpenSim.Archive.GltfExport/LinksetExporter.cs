@@ -477,6 +477,8 @@ internal static class LinksetExporter
         float isx = sx != 0 ? 1f / sx : 1f, isy = sy != 0 ? 1f / sy : 1f, isz = sz != 0 ? 1f / sz : 1f;
         triangleCount = 0;
 
+        // the hash of each extra coordinate set, by face number; a modelling tool keeps a mesh's extras but not a primitive's
+        JsonObject allUvSetHashes = null;
         foreach (PrimFace f in faces)
         {
             int n = f.Positions.Length;
@@ -499,11 +501,23 @@ internal static class LinksetExporter
                 uv[i] = Finite(f.Uvs[i]);
 
             FaceSettings settings = FaceMaterials.Read(textures.Face(f.Number), f.Number);
-            int materialIndex = FaceMaterials.Material(materials, settings, materialInfo, pp, out bool secondSet);
-            float[] uv1 = secondSet
-                ? ViewerTextureMapping.SecondSet(f.Positions, f.Normals, uv, settings.Mapping == MappingType.Planar, sx, sy, sz,
-                    settings.RepeatU, settings.RepeatV, settings.OffsetU, settings.OffsetV, settings.Rotation)
-                : null;
+            int materialIndex = FaceMaterials.Material(materials, settings, materialInfo, pp, out List<MapMapping> extraSets);
+            bool secondSet = extraSets.Count > 0;
+            List<float[]> extraUvs = null;
+            JsonObject uvSetHashes = null;
+            if (secondSet)
+            {
+                extraUvs = new List<float[]>();
+                uvSetHashes = new JsonObject();
+                foreach (MapMapping mapping in extraSets)
+                {
+                    float[] set = ViewerTextureMapping.SecondSet(f.Positions, f.Normals, uv, mapping.Planar, sx, sy, sz,
+                        mapping.RepeatU, mapping.RepeatV, mapping.OffsetU, mapping.OffsetV, mapping.Rotation);
+                    extraUvs.Add(set);
+                    // the hash lets a tool that reads the file back tell whether the set was edited
+                    uvSetHashes["TEXCOORD_" + extraUvs.Count] = UvSetHash.Of(set, null);
+                }
+            }
 
             int[] indices = null;
             int faceTriangles = f.TriangleCount;
@@ -530,13 +544,15 @@ internal static class LinksetExporter
                 Positions = pos,
                 Normals = nor,
                 Uvs = uv,
-                Uvs1 = uv1,
+                ExtraUvs = extraUvs,
                 FaceNumbers = faceNumbers,
                 PartLinks = partLinks,
                 Indices = indices,
                 Material = materialIndex,
                 Extras = new JsonObject { ["primFace"] = f.Number }
             };
+            if (uvSetHashes != null)
+                (allUvSetHashes ??= new JsonObject())[f.Number.ToString(System.Globalization.CultureInfo.InvariantCulture)] = uvSetHashes;
             mesh.Primitives.Add(prim);
             numbers.Add(f.Number);
             triangleCount += faceTriangles;
@@ -550,6 +566,8 @@ internal static class LinksetExporter
         };
         if (unnumbered > 0)
             mesh.Extras["unnumberedTriangles"] = unnumbered;
+        if (allUvSetHashes != null)
+            mesh.Extras["uvSetHashes"] = allUvSetHashes;
         faceCount = faces.Count;
         return mesh;
     }

@@ -19,6 +19,8 @@ public sealed class GlbPrimitive
     public float[] Positions;
     public float[] Normals;
     public float[] Uvs;
+    /// <summary>The extra coordinate sets, by attribute name (TEXCOORD_1, TEXCOORD_2, ...).</summary>
+    public Dictionary<string, float[]> ExtraUvs = new Dictionary<string, float[]>();
     /// <summary>The application attribute _PRIM_FACE, one value per vertex; null when the primitive has none.</summary>
     public float[] FaceNumbers;
     /// <summary>Three vertex numbers for each triangle.</summary>
@@ -145,6 +147,9 @@ public sealed class GlbFile
                         Material = p["material"] == null ? -1 : (int)p["material"],
                         Extras = p["extras"] as JsonObject
                     };
+                    foreach (KeyValuePair<string, JsonNode> attribute in a.AsObject())
+                        if (attribute.Key.StartsWith("TEXCOORD_", StringComparison.Ordinal) && attribute.Key != "TEXCOORD_0")
+                            prim.ExtraUvs[attribute.Key] = ReadFloats(attribute.Value, 2, accessors, views, data, binAt, binLength);
                     int vertices = prim.Positions.Length / 3;
                     prim.Indices = p["indices"] == null ? Enumerable.Range(0, vertices - vertices % 3).ToArray() : ReadIndices(p["indices"], accessors, views, data, binAt, binLength);
                     foreach (int i in prim.Indices)

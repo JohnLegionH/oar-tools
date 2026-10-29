@@ -81,8 +81,8 @@ public class CleanExportTests
     // (their match with the viewer's own volume code is in ViewerGeometryTests); they change whenever that tessellation does or a field is
     // added to the node, mesh or material extras (the geometry itself is pinned bit for bit in ExportFidelityTests).
     [Theory]
-    [InlineData("box-hollow-cut", "a164b0b8a36bfd348f94f0b0e247b7460508a9768790453a166c32446cc79d2e")]
-    [InlineData("sphere", "03090e075b0427bbe6851b69d517598ff36259e77e845be9d80f9d5ffffa8f85")]
+    [InlineData("box-hollow-cut", "69b5bb869164b93c56a4bb5db0288fac18814676a970ca316154722b1857409f")]
+    [InlineData("sphere", "78651da7188e712be61c40536c52b47bd6b33765902f444f7e0abdc187d845ec")]
     public void WithCleaningOffTheFileIsByteForByteWhatTheExporterWroteBeforeCleaningExisted(string shape, string expectedSha256)
     {
         string actual = Convert.ToHexString(SHA256.HashData(BuildGlb(shape, clean: false))).ToLowerInvariant();

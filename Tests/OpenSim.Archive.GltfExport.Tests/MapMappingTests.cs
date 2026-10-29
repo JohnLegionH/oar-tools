@@ -128,6 +128,7 @@ public class MapMappingTests
         return (s * m.RepeatU + m.OffsetU + 0.5f, t * m.RepeatV + m.OffsetV + 0.5f);
     }
 
+    // a legacy material stores its transform in ten-thousandths and a face in 16 bits, so the sets agree to a few thousandths
     private static void AssertSetIsViewerMapping(Glb glb, string set, Map m)
     {
         float[] raw = Uvs(glb, 1, "TEXCOORD_0"), got = Uvs(glb, 1, set);
@@ -135,8 +136,8 @@ public class MapMappingTests
         for (int i = 0; i < raw.Length; i += 2)
         {
             (float eu, float ev) = Viewer(raw[i], 1f - raw[i + 1], m);
-            Assert.Equal(eu, got[i], 3);
-            Assert.Equal(1f - ev, got[i + 1], 3);
+            Assert.Equal(eu, got[i], 2);
+            Assert.Equal(1f - ev, got[i + 1], 2);
         }
     }
 
@@ -259,10 +260,11 @@ public class MapMappingTests
     }
 
     [Fact]
-    public void ExtraSetsAreHashedInThePrimitiveExtras()
+    public void ExtraSetsAreHashedInTheMeshExtrasByFaceNumber()
     {
         Glb glb = Export(Rotated(), false, normal: new Map { RepeatU = 5f, RepeatV = 2f, Rotation = -1.1f });
-        JsonElement hashes = PrimitiveOfFace(glb, 1).GetProperty("extras").Req("uvSetHashes");
+        // a modelling tool keeps a mesh's extras, not a primitive's
+        JsonElement hashes = glb.Root.GetProperty("meshes")[0].GetProperty("extras").Req("uvSetHashes").Req("1");
         Assert.Equal(2, hashes.EnumerateObject().Count());
         Assert.Matches("^[0-9a-f]{64}$", hashes.Req("TEXCOORD_1").GetString());
         Assert.NotEqual(hashes.Req("TEXCOORD_1").GetString(), hashes.Req("TEXCOORD_2").GetString());

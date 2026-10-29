@@ -218,6 +218,7 @@ public sealed partial class ArchiveRestorer
             GlbFile original = GlbFile.Read(File.ReadAllBytes(build.GlbPath));
             List<PartNode> originalParts = PartNodes(original, build.GlbPath);
 
+            ResolveByLinkNumber(userParts, originalParts, glbName);
             SortNodes(user, userParts, originalParts, glbName, out List<PartNode> kept, out List<PartNode> addedNodes);
             NodeFrame userFrame = new NodeFrame(user), originFrame = new NodeFrame(original);
             Dictionary<Guid, PartNode> originalById = originalParts.ToDictionary(p => p.PartId);
@@ -242,6 +243,7 @@ public sealed partial class ArchiveRestorer
                 result.Parts.Add(report);
                 Judge(run, report, up, op, user, original, userFrame, originFrame, up.PartId == rootId ? groupMove : null, userRootNode, originRootNode);
                 WarnTextureTransform(report, user, up.Node);
+                WarnEditedUvSets(report, user, up.Node);
             }
             foreach (PartNode op in gone)
             {
@@ -595,6 +597,49 @@ public sealed partial class ArchiveRestorer
             report.Notes.Add("the physics mesh has more vertices than a mesh asset can index; the part collides as its bounding hull");
     }
 
+    /// <summary>
+    /// The extra coordinate sets (TEXCOORD_1 and up) hold what the viewer draws and are not read back: the part's coordinates are the first
+    /// set. The exporter recorded a hash of each extra set of each face in the mesh's extras; a set that no longer matches was edited, or
+    /// is gone, and the report says that edit is not carried back.
+    /// </summary>
+    private static void WarnEditedUvSets(PartReport report, GlbFile user, GlbNode node)
+    {
+        if (node.Mesh < 0 || node.Mesh >= user.Meshes.Count || user.Meshes[node.Mesh].Extras?["uvSetHashes"] is not JsonObject faces)
+            return;
+        GlbMesh mesh = user.Meshes[node.Mesh];
+        foreach (KeyValuePair<string, JsonNode> face in faces.OrderBy(f => int.TryParse(f.Key, out int n) ? n : int.MaxValue))
+        {
+            if (!int.TryParse(face.Key, NumberStyles.Integer, Inv, out int faceNumber) || face.Value is not JsonObject sets)
+                continue;
+            foreach (KeyValuePair<string, JsonNode> set in sets)
+            {
+                List<float> corners = new List<float>();
+                bool found = false;
+                foreach (GlbPrimitive prim in mesh.Primitives)
+                {
+                    if (prim.FaceNumbers == null || !prim.ExtraUvs.TryGetValue(set.Key, out float[] uvs))
+                        continue;
+                    for (int t = 0; t + 2 < prim.Indices.Length; t += 3)
+                    {
+                        if ((int)Math.Round(prim.FaceNumbers[prim.Indices[t]]) != faceNumber)
+                            continue;
+                        found = true;
+                        for (int c = 0; c < 3; c++)
+                        {
+                            corners.Add(uvs[prim.Indices[t + c] * 2]);
+                            corners.Add(uvs[prim.Indices[t + c] * 2 + 1]);
+                        }
+                    }
+                }
+                string what = "face " + faceNumber.ToString(Inv) + ": ";
+                if (!found)
+                    report.Notes.Add(what + set.Key + " is missing from the .glb; the viewer's mapping kept in it is not carried back (the part keeps its texture settings)");
+                else if (UvSetHash.Of(corners, null) != (string)set.Value)
+                    report.Notes.Add(what + set.Key + " was edited; that edit is not carried back. restore reads the first UV map (TEXCOORD_0) only; edit that one if the coordinates must change");
+            }
+        }
+    }
+
     /// <summary>A glTF texture transform on a part's material is never dropped without a word: the report says it is not applied.</summary>
     private static void WarnTextureTransform(PartReport report, GlbFile user, GlbNode node)
     {
@@ -878,9 +923,11 @@ public sealed partial class ArchiveRestorer
         foreach (GlbNode n in file.Nodes)
         {
             string id = GlbFile.Str(n.Extras, "partUuid");
-            if (id == null)
+            // an object with a mesh and a link number but no part id is identified by the link number alone (see ResolveByLinkNumber)
+            if (id == null && (n.Mesh < 0 || GlbFile.Num(n.Extras, "linkNumber") == null))
                 continue;
-            if (!Guid.TryParse(id, out Guid g))
+            Guid g = Guid.Empty;
+            if (id != null && !Guid.TryParse(id, out g))
                 throw new RestoreException("'" + label + "' has a node whose partUuid '" + id + "' is not a UUID");
             list.Add(new PartNode
             {
@@ -896,13 +943,13 @@ public sealed partial class ArchiveRestorer
     private static FreshBuild MatchBuild(GlbFile user, List<PartNode> userParts, List<FreshBuild> fresh, string label)
     {
         if (userParts.Count == 0)
-            throw new RestoreException("'" + label + "' has no part nodes (no node carries a partUuid); it is not a file of the exporter's, or Blender dropped the custom properties (turn Custom Properties on in Blender's export settings)");
+            throw new RestoreException("'" + label + "' has no objects that say which part they are (no object carries a partUuid or a linkNumber). restore never matches parts by name. If the file went through Blender, Blender left the custom properties out: turn on Custom Properties (Include > Data) in the glTF export settings and export again");
         GlbNode objectNode = user.Nodes.FirstOrDefault(n => GlbFile.Str(n.Extras, "kind") == "object");
         string root = GlbFile.Str(objectNode?.Extras, "rootPartUuid");
         string entry = GlbFile.Str(objectNode?.Extras, "archiveEntry");
         List<FreshBuild> candidates = root != null && Guid.TryParse(root, out Guid rootId)
             ? fresh.Where(b => Guid.TryParse(b.Root, out Guid g) && g == rootId).ToList()
-            : fresh.Where(b => b.Parts.Contains(userParts[0].PartId)).ToList();
+            : fresh.Where(b => userParts.Any(p => p.PartId != Guid.Empty && b.Parts.Contains(p.PartId))).ToList();
         if (candidates.Count > 1 && entry != null)
         {
             List<FreshBuild> byEntry = candidates.Where(b => b.Entry == entry).ToList();
@@ -933,8 +980,17 @@ public sealed partial class ArchiveRestorer
                 added.AddRange(nodes);
                 continue;
             }
-            PartNode keep = nodes.FirstOrDefault(n => string.Equals(StripCopySuffix(n.Node.Name), op.Name, StringComparison.Ordinal) && n.Node.Name == StripCopySuffix(n.Node.Name))
-                ?? nodes.FirstOrDefault(n => string.Equals(StripCopySuffix(n.Node.Name), op.Name, StringComparison.Ordinal)) ?? nodes[0];
+            PartNode keep = nodes[0];
+            if (nodes.Count > 1)
+            {
+                // Blender copies the custom properties with an object, so a copy carries the original's part id. The names are only
+                // used to tell the copies of one part from each other, and only when exactly one still has the part's own name.
+                List<PartNode> named = nodes.Where(n => n.Node.Name == op.Name).ToList();
+                if (named.Count != 1)
+                    throw new RestoreException("'" + label + "' has " + nodes.Count + " objects (" + string.Join(", ", nodes.Select(n => "'" + n.Node.Name + "'")) + ") that carry the part id " + group.Key.ToString("D")
+                        + " and none of them is the only one named '" + op.Name + "', so restore cannot tell which is the part; nothing was written. Delete the copies, or remove their custom properties");
+                keep = named[0];
+            }
             kept.Add(keep);
             added.AddRange(nodes.Where(n => n != keep));
         }
@@ -950,11 +1006,29 @@ public sealed partial class ArchiveRestorer
 
         foreach (GlbNode n in user.Nodes)
         {
-            if (n.Mesh < 0 || GlbFile.Str(n.Extras, "partUuid") != null || GlbFile.Str(n.Extras, "kind") == "object")
+            if (n.Mesh < 0 || userParts.Any(p => p.Node == n) || GlbFile.Str(n.Extras, "kind") == "object")
                 continue;
             added.Add(new PartNode { Node = n, PartId = Guid.Empty, Name = n.Name });
         }
         added.Sort((a, b) => a.Node.Index.CompareTo(b.Node.Index));
+    }
+
+    /// <summary>
+    /// A node that kept its link number but not its part id is matched to the original part with that link number. Two such nodes with
+    /// one link number, or a link number the original does not have, refuse the file: a name is never used to choose.
+    /// </summary>
+    private static void ResolveByLinkNumber(List<PartNode> userParts, List<PartNode> originalParts, string label)
+    {
+        List<PartNode> unnamed = userParts.Where(p => p.PartId == Guid.Empty).ToList();
+        foreach (IGrouping<int, PartNode> byLink in unnamed.GroupBy(p => p.LinkNum))
+        {
+            if (byLink.Count() > 1)
+                throw new RestoreException("'" + label + "' has " + byLink.Count() + " objects with link number " + byLink.Key.ToString(Inv) + " and no part id; restore cannot tell them apart (it never uses names); nothing was written");
+            List<PartNode> match = originalParts.Where(o => o.LinkNum == byLink.Key).ToList();
+            if (match.Count != 1)
+                throw new RestoreException("'" + label + "' has an object with link number " + byLink.Key.ToString(Inv) + " and no part id, but the original build has no single part with that link number; nothing was written");
+            byLink.First().PartId = match[0].PartId;
+        }
     }
 
     /// <summary>The name without Blender's ".001" suffix for a second object of one name.</summary>
