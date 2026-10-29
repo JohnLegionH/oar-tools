@@ -273,13 +273,18 @@ public class MergeGeometryTests
     [Fact]
     public void AMaterialPastTheVertexLimitIsSplitIntoFacesWithinTheLimit()
     {
-        MergeOptions o = new MergeOptions { MaxFaceVertices = 40 };
-        var (plan, members, _) = Make(o, Three());
+        // every face of a box holds 16 vertices at the viewer's highest level of detail, so the three boxes hold 288 between them,
+        // more than the limit
+        const int limit = 200;
+        MergeOptions o = new MergeOptions { MaxFaceVertices = limit };
+        Spec[] boxes = Three();
+        boxes[2].Shape = "box";
+        var (plan, members, _) = Make(o, boxes);
         MergedGeometry g = MergeGeometry.Build(plan, members, carrierIsRoot: false, o);
         Assert.True(plan.Slots.Count > 1);
         Assert.True(g.Faces.Count >= plan.Slots.Count);
         Assert.Equal(g.Faces.Count, g.Template.Count);
-        Assert.All(g.Faces, f => Assert.True(f.VertexCount <= 40, f.VertexCount + " vertices"));
+        Assert.All(g.Faces, f => Assert.True(f.VertexCount <= limit, f.VertexCount + " vertices"));
         Assert.Equal(members.Sum(m => m.Faces.Sum(f => f.Indices.Length)), g.Faces.Sum(f => f.Indices.Length));
     }
 

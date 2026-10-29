@@ -51,7 +51,8 @@ public class MergePlanArchiveTests
         Assert.Equal(3, plan.PartsBefore);
         Assert.Equal(1, plan.PartsAfter);
         Assert.Equal(1, plan.MergedParts);
-        Assert.Equal(6 + 6 + 6, plan.Linksets[0].Merged[0].Slots.Sum(s => s.Vertices) / 4);
+        // a box face holds 16 vertices at the viewer's highest level of detail (four rows of four), so three boxes hold 18 faces of 16
+        Assert.Equal((6 + 6 + 6) * 16 / 4, plan.Linksets[0].Merged[0].Slots.Sum(s => s.Vertices) / 4);
     }
 
     [Fact]

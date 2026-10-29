@@ -54,15 +54,15 @@ public static partial class SculptGeometry
     /// wall of a hollow, the cap at the near end, and the two flat faces along a profile cut. Each face keeps its number even
     /// when another has no area.
     /// </summary>
-    /// <summary>A sculpt's faces at a viewer detail scale (1, 1.5, 2.5 or 4). Not built yet: no faces.</summary>
-    public static SculptResult BuildVolume(SculptMap map, int sculptType, PrimParams p, float detail) => new SculptResult();
+    public static SculptResult BuildVolume(SculptMap map, int sculptType, PrimParams p) => BuildVolume(map, sculptType, p, PrimGeometry.HighestDetail);
 
-    public static SculptResult BuildVolume(SculptMap map, int sculptType, PrimParams p)
+    /// <summary>A sculpt's faces at a viewer detail scale (1, 1.5, 2.5 or 4); see the overload without one, which is the highest.</summary>
+    public static SculptResult BuildVolume(SculptMap map, int sculptType, PrimParams p, float detail)
     {
         // The viewer's own rows and columns are generated whenever the profile and path are circles, even for a plain sculpt: the
         // path and the ring step by a float that does not always add up to exactly 1, which can leave one row more than the sides.
         if (!Described(p))
-            return Build(map, sculptType);
+            return Build(map, sculptType, detail);
 
         SculptResult result = new SculptResult();
         if (map == null || map.Width < 1 || map.Height < 1 || map.Rgb == null || map.Rgb.Length < map.Width * map.Height * 3)
@@ -76,11 +76,11 @@ public static partial class SculptGeometry
         bool mirror = (sculptType & FlagMirror) != 0;
         bool reverseHorizontal = invert ? !mirror : mirror;
 
-        Resolution(map.Width, map.Height, out int pathSides, out int profileSides);
+        Resolution(map.Width, map.Height, detail, out int pathSides, out int profileSides);
         bool pathOpen = ViewerFaceRule.PathIsOpen(p);
         List<float> texT = PathRows(p.PathBegin, p.PathEnd, pathSides);
         List<float[]> profile = new List<float[]>();   // x, y, z (the profile parameter) per point
-        List<ProfileFace> faces = ProfileFaces(p, profileSides, pathOpen, profile, out bool profileOpen);
+        List<ProfileFace> faces = ProfileFaces(p, profileSides, detail, pathOpen, profile, out bool profileOpen);
 
         int rows = texT.Count, cols = profile.Count;
         result.Rows = rows;
@@ -192,12 +192,12 @@ public static partial class SculptGeometry
     private static float[] Lerp(float[] a, float[] b, float f) => new[] { a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f };
 
     /// <summary>The faces of a circle profile in the viewer's order, with the profile points they index.</summary>
-    private static List<ProfileFace> ProfileFaces(PrimParams p, int sides, bool pathOpen, List<float[]> profile, out bool open)
+    private static List<ProfileFace> ProfileFaces(PrimParams p, int sides, float detail, bool pathOpen, List<float[]> profile, out bool open)
     {
         float hollow = p.ProfileHollow;
         bool hasHollow = hollow > 0f;
         int holeType = p.HoleType;
-        float circleDetail = MinDetailFaces * HighestDetail;
+        float circleDetail = MinDetailFaces * detail;
         if (hasHollow && holeType == 0x20)
             circleDetail = MathF.Ceiling(circleDetail / 4f) * 4f;
 

@@ -72,9 +72,12 @@ public class ViewerUvRuleTests
             {
                 // the cap's coordinates are the profile point's: the same set as the plain shape's cap
                 if (same == null) { bad.Add(name + ": no plain cap to compare with"); continue; }
+                // plus, on a solid cap, the vertex the viewer adds at the middle of the cap's coordinate range
                 List<(float u, float v, float x, float y, float z)> pv = Verts(same.Value.mesh).ToList();
+                float centreU = (pv.Min(q => q.u) + pv.Max(q => q.u)) / 2f, centreV = (pv.Min(q => q.v) + pv.Max(q => q.v)) / 2f;
                 foreach (var v in Verts(m))
-                    if (!pv.Any(q => Math.Abs(q.u - v.u) < Tol && Math.Abs(q.v - v.v) < Tol))
+                    if (!pv.Any(q => Math.Abs(q.u - v.u) < Tol && Math.Abs(q.v - v.v) < Tol)
+                        && !(Math.Abs(centreU - v.u) < Tol && Math.Abs(centreV - v.v) < Tol))
                     {
                         bad.Add(name + ": cap coordinate (" + v.u.ToString("0.###") + "," + v.v.ToString("0.###") + ") is not a profile point of the plain shape");
                         break;
@@ -82,8 +85,11 @@ public class ViewerUvRuleTests
                 continue;
             }
 
-            if (same == null) { bad.Add(name + ": no plain face to compare with"); continue; }
-            List<float> plainU = Verts(same.Value.mesh).Select(q => q.u).ToList();
+            // a flat cut face runs from u = 0 to u = 1 whatever the shape; it may exist only when the shape is twisted or tapered (a plain
+            // hollow sphere's cut faces lie on the axis and have no area), so it has no plain face to compare with
+            bool cutFace = f.Kind == PrimFaceKind.ProfileCutBegin || f.Kind == PrimFaceKind.ProfileCutEnd;
+            if (same == null && !cutFace) { bad.Add(name + ": no plain face to compare with"); continue; }
+            List<float> plainU = same == null ? new List<float> { 0f, 1f } : Verts(same.Value.mesh).Select(q => q.u).ToList();
             foreach (var v in Verts(m))
                 if (!In(plainU, v.u))
                 {

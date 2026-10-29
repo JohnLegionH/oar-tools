@@ -148,8 +148,9 @@ public class CleanConvertTests
     [Fact]
     public void WithCleaningOffTheMeshIsByteForByteWhatTheConverterWroteBeforeCleaningExisted()
     {
-        // the mesh's asset id is derived from its bytes
-        Assert.Equal(Guid.Parse("46019f5a-5fc0-81d1-9a69-be8cc0d4a89c"), ConvertOne(false).result.Converted.Single().MeshId);
+        // the mesh's asset id is derived from its bytes, which hold the faces as the viewer tessellates them (their match with the
+        // viewer's own volume code is in the export tests); it changes whenever that tessellation does
+        Assert.Equal(Guid.Parse("804ed08b-a2ab-8226-b197-880688f746c3"), ConvertOne(false).result.Converted.Single().MeshId);
     }
 
     [Fact]

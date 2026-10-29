@@ -126,18 +126,19 @@ public static class PrimGeometry
     /// <summary>The viewer's detail scale at its highest level of detail (the last of its four: 1, 1.5, 2.5 and 4).</summary>
     public const float HighestDetail = 4f;
 
-    /// <summary>Shape to faces at a viewer detail scale (1, 1.5, 2.5 or 4). Not built yet: no faces.</summary>
-    public static List<PrimFace> BuildFaces(PrimParams p, float detail, out int faceCount, out int unnumberedTriangles)
-    {
-        faceCount = 0;
-        unnumberedTriangles = 0;
-        return new List<PrimFace>();
-    }
+    private static float DetailOf(DetailLevel lod) => lod == DetailLevel.Low ? 1f : lod == DetailLevel.Medium ? 2f : HighestDetail;
 
-    private static int CircleSides(DetailLevel lod) => lod == DetailLevel.Low ? 6 : lod == DetailLevel.Medium ? 12 : 24;
+    // The viewer gives a round profile 6 sides for every unit of detail (MIN_DETAIL_FACES in llvolume.h), rounded down.
+    private static int CircleSides(float detail) => (int)MathF.Floor(6f * detail);
 
-    /// <summary>Builds and extrudes the mesh for a shape in viewer mode.</summary>
-    public static PrimMesh BuildMesh(PrimParams p, DetailLevel lod = DetailLevel.High)
+    /// <summary>
+    /// Builds and extrudes the mesh for a shape with the region's prim mesher in viewer mode. The export no longer builds its faces
+    /// this way (see <see cref="BuildFaces(PrimParams, float, out int, out int)"/>): this mesher's tessellation is coarser than the viewer's.
+    /// </summary>
+    public static PrimMesh BuildMesh(PrimParams p, DetailLevel lod = DetailLevel.High) => BuildMesh(p, DetailOf(lod));
+
+    /// <summary>Builds and extrudes the mesh for a shape in viewer mode at a viewer detail scale.</summary>
+    public static PrimMesh BuildMesh(PrimParams p, float detail)
     {
         int sides = 4;
         int hollowSides = 4;
@@ -148,14 +149,14 @@ public static class PrimGeometry
         switch (p.ProfileCurve & 0x07)
         {
             case 0:
-                sides = CircleSides(lod);
+                sides = CircleSides(detail);
                 break;
             case 3:
                 sides = 3;
                 break;
             case 5:
                 isSphere = true;
-                sides = CircleSides(lod);
+                sides = CircleSides(detail);
                 profileBegin = 0.5f * profileBegin + 0.5f;
                 profileEnd = 0.5f * profileEnd + 0.5f;
                 break;
@@ -164,7 +165,7 @@ public static class PrimGeometry
         switch (p.HoleType)
         {
             case 0: hollowSides = sides; break;
-            case 16: hollowSides = CircleSides(lod); break;
+            case 16: hollowSides = CircleSides(detail); break;
             case 48: hollowSides = 3; break;
         }
 
@@ -181,7 +182,7 @@ public static class PrimGeometry
             radius = p.PathRadiusOffset,
             revolutions = p.PathRevolutions,
             skew = p.PathSkew,
-            stepsPerRevolution = CircleSides(lod)
+            stepsPerRevolution = CircleSides(detail)
         };
 
         if (p.PathCurve == 16 || p.PathCurve == 128)
@@ -213,9 +214,12 @@ public static class PrimGeometry
     /// cap and v = 0.5 + y on the bottom cap, which is what the mesher writes for straight and circular paths alike, so
     /// no coordinate is changed here.
     /// </summary>
-    public static List<ViewerFace> BuildViewerFaces(PrimParams p, DetailLevel lod, out int bottomMesherNumber)
+    public static List<ViewerFace> BuildViewerFaces(PrimParams p, DetailLevel lod, out int bottomMesherNumber) =>
+        BuildViewerFaces(p, DetailOf(lod), out bottomMesherNumber);
+
+    public static List<ViewerFace> BuildViewerFaces(PrimParams p, float detail, out int bottomMesherNumber)
     {
-        PrimMesh mesh = BuildMesh(p, lod);
+        PrimMesh mesh = BuildMesh(p, detail);
         List<ViewerFace> faces = mesh.viewerFaces;
         bottomMesherNumber = -1;
         foreach (ViewerFace f in faces)
@@ -230,7 +234,7 @@ public static class PrimGeometry
     /// <summary>Shape to faces, one entry per prim face that has area, in face-number order.</summary>
     public static List<PrimFace> BuildFaces(PrimParams p, DetailLevel lod = DetailLevel.High)
     {
-        return BuildFaces(p, lod, out _, out _);
+        return BuildFaces(p, DetailOf(lod), out _, out _);
     }
 
     /// <summary>
@@ -241,104 +245,57 @@ public static class PrimGeometry
     /// and left out.
     /// </summary>
     /// <param name="faceCount">How many faces the viewer gives the prim, including faces with no area.</param>
-    public static List<PrimFace> BuildFaces(PrimParams p, DetailLevel lod, out int faceCount, out int unnumberedTriangles)
+    public static List<PrimFace> BuildFaces(PrimParams p, DetailLevel lod, out int faceCount, out int unnumberedTriangles) =>
+        BuildFaces(p, DetailOf(lod), out faceCount, out unnumberedTriangles);
+
+    /// <summary>
+    /// Shape to faces at a viewer detail scale (1, 1.5, 2.5 or 4), tessellated the way the viewer does (<see cref="ViewerVolume"/>):
+    /// each face has the number it has in the viewer's list, and a face with no area is left out so its number stays unused.
+    /// </summary>
+    public static List<PrimFace> BuildFaces(PrimParams p, float detail, out int faceCount, out int unnumberedTriangles)
     {
-        List<ViewerFace> viewerFaces = BuildViewerFaces(p, lod, out _);
-        List<PrimFaceKind> kinds = ViewerFaceRule.Faces(p);
-        faceCount = kinds.Count;
-
-        // triangles with area, by what they belong to; the outer sides of a square or triangle profile by their mesher number
-        List<ViewerFace> top = new List<ViewerFace>(), bottom = new List<ViewerFace>(), inner = new List<ViewerFace>();
-        List<ViewerFace> cutBegin = new List<ViewerFace>(), cutEnd = new List<ViewerFace>();
-        SortedDictionary<int, List<ViewerFace>> outer = new SortedDictionary<int, List<ViewerFace>>();
-        bool oneOuterFace = (p.ProfileCurve & 0x0F) == 0 || (p.ProfileCurve & 0x0F) == 5;
-        foreach (ViewerFace vf in viewerFaces)
-        {
-            if (Area(vf) < MinArea)
-                continue;
-            switch (vf.role)
-            {
-                case ViewerFaceRole.Top: top.Add(vf); break;
-                case ViewerFaceRole.Bottom: bottom.Add(vf); break;
-                case ViewerFaceRole.Hollow: inner.Add(vf); break;
-                case ViewerFaceRole.CutBegin: cutBegin.Add(vf); break;
-                case ViewerFaceRole.CutEnd: cutEnd.Add(vf); break;
-                default:
-                    int key = oneOuterFace ? 0 : vf.primFaceNumber;
-                    if (!outer.TryGetValue(key, out List<ViewerFace> list))
-                        outer[key] = list = new List<ViewerFace>();
-                    list.Add(vf);
-                    break;
-            }
-        }
-
-        List<List<ViewerFace>> outers = outer.Values.ToList();
-        int total = top.Count + bottom.Count + inner.Count + cutBegin.Count + cutEnd.Count + outers.Sum(o => o.Count);
-        int used = 0;
-        int nextOuter = 0;
+        List<ViewerVolume.VolumeFace> volumeFaces = ViewerVolume.Generate(p, detail);
+        faceCount = volumeFaces.Count;
+        unnumberedTriangles = 0;
         List<PrimFace> result = new List<PrimFace>();
-        for (int number = 0; number < kinds.Count; number++)
+        for (int number = 0; number < volumeFaces.Count; number++)
         {
-            PrimFaceKind kind = kinds[number];
-            List<ViewerFace> tris = kind switch
+            ViewerVolume.VolumeFace vf = volumeFaces[number];
+            List<int> tris = new List<int>();
+            for (int i = 0; i + 2 < vf.Indices.Count; i += 3)
             {
-                PrimFaceKind.Top => top,
-                PrimFaceKind.Bottom => bottom,
-                PrimFaceKind.Inner => inner,
-                PrimFaceKind.ProfileCutBegin => cutBegin,
-                PrimFaceKind.ProfileCutEnd => cutEnd,
-                _ => nextOuter < outers.Count ? outers[nextOuter++] : null
-            };
-            if (tris == null || tris.Count == 0)
+                System.Numerics.Vector3 a = vf.Positions[vf.Indices[i]], b = vf.Positions[vf.Indices[i + 1]], c = vf.Positions[vf.Indices[i + 2]];
+                if (0.5f * System.Numerics.Vector3.Cross(b - a, c - a).Length() >= MinArea)
+                    tris.Add(i);
+            }
+            if (tris.Count == 0)
                 continue;
-            used += tris.Count;
-            result.Add(MakeFace(number, kind, tris));
+            PrimFace f = new PrimFace
+            {
+                Number = number,
+                Kind = vf.Kind,
+                MesherNumber = number,
+                Positions = new float[tris.Count * 9],
+                Normals = new float[tris.Count * 9],
+                Uvs = new float[tris.Count * 6]
+            };
+            for (int k = 0; k < tris.Count; k++)
+                for (int corner = 0; corner < 3; corner++)
+                {
+                    int vi = vf.Indices[tris[k] + corner];
+                    System.Numerics.Vector3 pos = vf.Positions[vi], nor = vf.Normals[vi];
+                    f.Positions[k * 9 + corner * 3] = pos.X; f.Positions[k * 9 + corner * 3 + 1] = pos.Y; f.Positions[k * 9 + corner * 3 + 2] = pos.Z;
+                    f.Normals[k * 9 + corner * 3] = nor.X; f.Normals[k * 9 + corner * 3 + 1] = nor.Y; f.Normals[k * 9 + corner * 3 + 2] = nor.Z;
+                    // the file's v runs down the image, the viewer's runs up
+                    f.Uvs[k * 6 + corner * 2] = vf.Uvs[vi].X;
+                    f.Uvs[k * 6 + corner * 2 + 1] = 1f - vf.Uvs[vi].Y;
+                }
+            result.Add(f);
         }
-
-        unnumberedTriangles = total - used;
         return result;
     }
 
-    private static PrimFace MakeFace(int number, PrimFaceKind kind, List<ViewerFace> tris)
-    {
-        PrimFace f = new PrimFace
-        {
-            Number = number,
-            Kind = kind,
-            MesherNumber = tris[0].primFaceNumber,
-            Positions = new float[tris.Count * 9],
-            Normals = new float[tris.Count * 9],
-            Uvs = new float[tris.Count * 6]
-        };
-        for (int i = 0; i < tris.Count; i++)
-        {
-            ViewerFace t = tris[i];
-            Put(f.Positions, i * 9, t.v1, t.v2, t.v3);
-            Put(f.Normals, i * 9, t.n1, t.n2, t.n3);
-            int u = i * 6;
-            f.Uvs[u] = t.uv1.U; f.Uvs[u + 1] = t.uv1.V;
-            f.Uvs[u + 2] = t.uv2.U; f.Uvs[u + 3] = t.uv2.V;
-            f.Uvs[u + 4] = t.uv3.U; f.Uvs[u + 5] = t.uv3.V;
-        }
-        return f;
-    }
-
-    private static void Put(float[] into, int at, Coord a, Coord b, Coord c)
-    {
-        into[at] = a.X; into[at + 1] = a.Y; into[at + 2] = a.Z;
-        into[at + 3] = b.X; into[at + 4] = b.Y; into[at + 5] = b.Z;
-        into[at + 6] = c.X; into[at + 7] = c.Y; into[at + 8] = c.Z;
-    }
-
-    // Triangles with no area: the mesher writes zero-width seam strips and, at a sphere's poles, collapsed fans. A
-    // float sine of pi is not exactly zero, so "no area" is judged against a size no real triangle of the unit shape reaches.
+    // A triangle smaller than this (in the unit box before the part's size is applied) has no area worth keeping: the viewer's grids hold
+    // zero-width strips along their seams and collapsed fans at the poles of a sphere.
     private const float MinArea = 1e-6f;
-
-    private static float Area(ViewerFace f)
-    {
-        float ux = f.v2.X - f.v1.X, uy = f.v2.Y - f.v1.Y, uz = f.v2.Z - f.v1.Z;
-        float vx = f.v3.X - f.v1.X, vy = f.v3.Y - f.v1.Y, vz = f.v3.Z - f.v1.Z;
-        float cx = uy * vz - uz * vy, cy = uz * vx - ux * vz, cz = ux * vy - uy * vx;
-        return 0.5f * MathF.Sqrt(cx * cx + cy * cy + cz * cz);
-    }
 }

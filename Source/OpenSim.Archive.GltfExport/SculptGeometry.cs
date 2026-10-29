@@ -53,6 +53,9 @@ public static partial class SculptGeometry
     // The viewer builds a sculpt with 6, 8, 16 or 32 sides per direction by level of detail; the highest is 32, so a grid
     // never holds more than 32 x 32 quads (1024 vertices before the seam), and never more than a quarter of the map's pixels.
     private const int HighestSides = 32;
+
+    // The number of sides in each direction for a level of detail: 6, 8, 16 or 32 for the viewer's detail scales 1, 1.5, 2.5 and 4.
+    private static int SidesOf(float detail) => detail <= 1f ? 6 : detail <= 2f ? 8 : detail <= 3f ? 16 : HighestSides;
     // A map whose surface is smaller or larger than this is not shown as a sculpt: the viewer draws a placeholder sphere.
     private const float MinSurfaceArea = 0.002f;
     private const float MaxSurfaceArea = 384f;
@@ -61,9 +64,14 @@ public static partial class SculptGeometry
     /// Path and profile sizes (rows and columns of quads) for a map: as many vertices as the level of detail allows
     /// and the map can supply, with the grid's shape following the map's.
     /// </summary>
-    public static void Resolution(int width, int height, out int pathSides, out int profileSides)
+    public static void Resolution(int width, int height, out int pathSides, out int profileSides) =>
+        Resolution(width, height, PrimGeometry.HighestDetail, out pathSides, out profileSides);
+
+    /// <summary>The sizes for a viewer detail scale (1, 1.5, 2.5 or 4); see the overload without one, which is the highest.</summary>
+    public static void Resolution(int width, int height, float detail, out int pathSides, out int profileSides)
     {
-        int maxLod = HighestSides * HighestSides;
+        int sides = SidesOf(detail);
+        int maxLod = sides * sides;
         int maxMap = width * height / 4;
         int vertices = maxMap > 0 ? Math.Min(maxLod, maxMap) : maxLod;
         float ratio = width == 0 || height == 0 ? 1f : (float)width / (float)height;
@@ -77,7 +85,10 @@ public static partial class SculptGeometry
         profileSides = Math.Max(t, 1);
     }
 
-    public static SculptResult Build(SculptMap map, int sculptType)
+    public static SculptResult Build(SculptMap map, int sculptType) => Build(map, sculptType, PrimGeometry.HighestDetail);
+
+    /// <summary>A plain sculpt at a viewer detail scale (1, 1.5, 2.5 or 4).</summary>
+    public static SculptResult Build(SculptMap map, int sculptType, float detail)
     {
         SculptResult result = new SculptResult();
         if (map == null || map.Width < 1 || map.Height < 1 || map.Rgb == null || map.Rgb.Length < map.Width * map.Height * 3)
@@ -92,7 +103,7 @@ public static partial class SculptGeometry
         // either flag alone reads the map from the other side; both together read it normally (and the mirror still flips x)
         bool reverseHorizontal = invert ? !mirror : mirror;
 
-        Resolution(map.Width, map.Height, out int pathSides, out int profileSides);
+        Resolution(map.Width, map.Height, detail, out int pathSides, out int profileSides);
         // a closed ring of N sides has N + 1 points, the last repeating the first
         int rows = pathSides + 1, cols = profileSides + 1;
         result.Rows = rows;
