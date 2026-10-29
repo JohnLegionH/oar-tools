@@ -149,6 +149,26 @@ public class RestoreIdentityTests
         Assert.False(File.Exists(f.Out));
     }
 
+    [Fact]
+    public void TwoObjectsCarryingOnePartIdAreRefusedWhenNoNameSaysWhichIsTheOriginal()
+    {
+        FiveObjects f = new FiveObjects();
+        f.Edit((json, bin) =>
+        {
+            JsonNode[] nodes = PartNodes(json).ToArray();
+            // the tool renamed all five alike and the user copied the third object: two objects now carry its part id
+            for (int i = 0; i < nodes.Length; i++)
+                nodes[i]["name"] = "Object.00" + (i + 1);
+            JsonNode copy = JsonNode.Parse(nodes[2].ToJsonString());
+            copy["name"] = "Object.006";
+            json["nodes"].AsArray().Add(copy);
+            json["nodes"].AsArray().First(n => (string)n["extras"]?["kind"] == "object")["children"].AsArray().Add(json["nodes"].AsArray().Count - 1);
+        });
+        RestoreException e = Assert.Throws<RestoreException>(() => f.Restore());
+        Assert.Contains(f.Parts[2].Id.ToString(), e.Message);
+        Assert.False(File.Exists(f.Out));
+    }
+
     // ------------------------------------------------------------------ edited extra coordinate sets
 
     /// <summary>One part with a planar face (face 1), so the file holds a second coordinate set for it.</summary>
