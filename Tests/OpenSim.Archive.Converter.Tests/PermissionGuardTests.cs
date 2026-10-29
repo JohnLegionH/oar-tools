@@ -204,8 +204,31 @@ public class PermissionGuardTests
         Directory.CreateDirectory(Path.GetDirectoryName(output));
         Assert.Equal(0, Run("convert", src, "--merge", "--out", output, "--merge-plan-dir", plans));
         Dictionary<string, Masks> after = Snapshot(output);
-        Assert.Contains(after.Keys, k => k.StartsWith("item ", StringComparison.Ordinal) && k.Contains("(" + MergeNotecardName() + ")"));
+        string noteKey = Assert.Single(after.Keys, k => k.StartsWith("item ", StringComparison.Ordinal) && k.Contains("(" + MergeNotecardName() + ")"));
         AssertNoLoosening(src, output, expectParts: 2);
+        // the notecard carries the masks of the part that holds it, which are the masks of every part merged into it
+        string partId = noteKey.Substring(noteKey.IndexOf(" in part ", StringComparison.Ordinal) + " in part ".Length);
+        Masks held = after.Single(k => k.Key.StartsWith("part " + partId + " (", StringComparison.Ordinal)).Value;
+        Assert.Equal(held, after[noteKey]);
+        Assert.Equal(Move | Transfer, held.Base);
+    }
+
+    [Fact]
+    public void TheManifestNotecardTakesTheMostRestrictiveMasksOfTheMergedParts()
+    {
+        PermissionMasks a = new PermissionMasks { Base = Move | Transfer | Copy, Owner = Move | Transfer, Group = Transfer, Everyone = 0, NextOwner = Move | Copy };
+        PermissionMasks b = new PermissionMasks { Base = Move | Copy | Modify, Owner = Move | Copy, Group = Copy, Everyone = Copy, NextOwner = Move };
+        PermissionMasks m = OpenSim.Archive.Converter.Merge.MergeArchiveWriter.MostRestrictive(new[] { a, b });
+        Assert.NotNull(m);
+        Assert.Equal(Move | Copy, m.Base);
+        Assert.Equal(Move, m.Owner);
+        Assert.Equal(0u, m.Group);
+        Assert.Equal(0u, m.Everyone);
+        Assert.Equal(Move, m.NextOwner);
+        Assert.Equal(a.Owner, OpenSim.Archive.Converter.Merge.MergeArchiveWriter.MostRestrictive(new[] { a }).Owner);
+        // a mask the archive does not give stays absent only when no part gives it
+        PermissionMasks none = new PermissionMasks();
+        Assert.Equal(Move, OpenSim.Archive.Converter.Merge.MergeArchiveWriter.MostRestrictive(new[] { none, b }).NextOwner);
     }
 
     [Fact]

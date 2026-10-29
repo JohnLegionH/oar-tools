@@ -25,6 +25,28 @@ public class CleanExportCommandTests
         finally { Console.SetOut(saved); }
     }
 
+    /// <summary>
+    /// The command holds the managed heap to the memory cap, and the runtime's limit is process wide. A second run in the same
+    /// process used to work its cap out from the limit the first run had set (half of it), and lower the limit again, so a host
+    /// that ran the command several times ended with a heap too small for anything else it was doing.
+    /// </summary>
+    [Fact]
+    public void RunningTheCommandAgainDoesNotLowerTheProcessMemoryLimitAgain()
+    {
+        static long Limit()
+        {
+            GC.Collect(2, GCCollectionMode.Forced, true, true);
+            return GC.GetGCMemoryInfo().TotalAvailableMemoryBytes;
+        }
+        ExportWith();
+        long afterFirst = Limit();
+        // the limit is in force after the first run, and is never above the default cap
+        Assert.True(afterFirst <= ArchiveExporter.DefaultMaxMemoryLimitMegabytes * 1024L * 1024L, "limit after the first run: " + afterFirst);
+        ExportWith();
+        ExportWith();
+        Assert.Equal(afterFirst, Limit());
+    }
+
     private static Glb ExportWith(params string[] extra)
     {
         string dir = NewFolder();

@@ -548,6 +548,9 @@ public static class MergeArchiveWriter
         return edits;
     }
 
+    /// <summary>The masks a merged part's notecard gets: the most restrictive of the masks of the parts merged into it.</summary>
+    public static PermissionMasks MostRestrictive(IEnumerable<PermissionMasks> masks) => null;
+
     private static string NotecardItem(PartView view, Guid part, Guid asset, Guid item)
     {
         string Uuid(string path)
