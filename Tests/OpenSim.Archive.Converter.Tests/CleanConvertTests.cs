@@ -145,12 +145,29 @@ public class CleanConvertTests
         Assert.True(on < off, "cleaning left " + on + " vertices of " + off);
     }
 
-    [Fact]
-    public void WithCleaningOffTheMeshIsByteForByteWhatTheConverterWroteBeforeCleaningExisted()
+    /// <summary>A hash of what the mesh holds at every level of detail: positions, normals, texture coordinates and triangles, as the floats' bits.</summary>
+    internal static string ContentHash(MeshAssetModel model)
     {
-        // the mesh's asset id is derived from its bytes, which hold the faces as the viewer tessellates them (their match with the
-        // viewer's own volume code is in the export tests); it changes whenever that tessellation does
-        Assert.Equal(Guid.Parse("804ed08b-a2ab-8226-b197-880688f746c3"), ConvertOne(false).result.Converted.Single().MeshId);
+        using System.Security.Cryptography.IncrementalHash h = System.Security.Cryptography.IncrementalHash.CreateHash(System.Security.Cryptography.HashAlgorithmName.SHA256);
+        void Add(float v) => h.AppendData(BitConverter.GetBytes(v));
+        for (int l = 0; l < MeshAssetModel.LodCount; l++)
+            foreach (MeshFace f in model.Lod(l).Faces)
+            {
+                h.AppendData(BitConverter.GetBytes(f.VertexCount));
+                foreach (System.Numerics.Vector3 v in f.Positions) { Add(v.X); Add(v.Y); Add(v.Z); }
+                foreach (System.Numerics.Vector3 v in f.Normals ?? Array.Empty<System.Numerics.Vector3>()) { Add(v.X); Add(v.Y); Add(v.Z); }
+                foreach (System.Numerics.Vector2 v in f.Uvs ?? Array.Empty<System.Numerics.Vector2>()) { Add(v.X); Add(v.Y); }
+                foreach (int i in f.Indices) h.AppendData(BitConverter.GetBytes(i));
+            }
+        return Convert.ToHexString(h.GetHashAndReset());
+    }
+
+    [Fact]
+    public void WithCleaningOffTheMeshHoldsTheViewersFacesAsTheConverterBuildsThem()
+    {
+        // The faces are the viewer's tessellation (their match with the viewer's own volume code is in the export tests); what the mesh
+        // holds is pinned, not the asset's bytes or id, which are not the same on every platform.
+        Assert.Equal("4327855B90752E5FF828DB51CE0F26EE872C7AE2823C4450D673472F171DF0D2", ContentHash(ConvertOne(false).model));
     }
 
     [Fact]
