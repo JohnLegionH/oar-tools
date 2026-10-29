@@ -97,6 +97,28 @@ def uv_map_nodes(material):
     return [n.uv_map for n in material.node_tree.nodes if n.type == "UVMAP"]
 
 
+def layer_read(material, texture):
+    """The UV map the image node showing <texture> reads: its layer name, None for the first map (no link), or a word for a node not found."""
+    if material is None or not material.use_nodes:
+        return "no nodes"
+
+    def trace(node):
+        links = node.inputs["Vector"].links if "Vector" in node.inputs else []
+        if not links:
+            return None
+        source = links[0].from_node
+        if source.type == "UVMAP":
+            return source.uv_map
+        if source.type == "MAPPING":
+            return trace(source)
+        return "unexpected node " + source.type
+
+    for node in material.node_tree.nodes:
+        if node.type == "TEX_IMAGE" and node.image is not None and node.image.name.startswith(texture):
+            return trace(node)
+    return "no image node"
+
+
 def build_folder(export, object_name):
     for entry in sorted(os.listdir(export)):
         manifest = os.path.join(export, entry, "manifest.json")
@@ -197,24 +219,29 @@ def check_mesh(fixture, obj, part, node, document, binary):
         worst = max(worst, abs(vx.x - gx), abs(vx.y + gz), abs(vx.z - gy))
     check(fixture, "'%s' positions equal the glTF's" % part["name"], worst <= TOLERANCE, "largest difference %g" % worst)
 
-    second = [k for k, p in enumerate(primitives) if "TEXCOORD_1" in p["attributes"]]
-    faces_second = set(part["secondSetFaces"])
-    got_second = {primitives[k]["extras"]["primFace"] for k in second}
-    check(fixture, "'%s' faces with TEXCOORD_1" % part["name"], got_second == faces_second, "got %r, want %r" % (sorted(got_second), sorted(faces_second)))
-    if second:
-        check(fixture, "'%s' has a second UV map" % part["name"], len(mesh.uv_layers) >= 2)
-        if len(mesh.uv_layers) >= 2:
-            uv1 = []
-            for k, p in enumerate(primitives):
-                values = corners(document, binary, p, "TEXCOORD_1")
-                uv1.extend(values if values is not None else [None] * len(corners(document, binary, p, "POSITION")))
-            layer1 = mesh.uv_layers[1].data
+    # the extra coordinate sets: the faces that have each one, and its values in the matching UV map
+    set_faces = {int(n): set(faces) for n, faces in part.get("setFaces", {"1": part["secondSetFaces"]}).items()}
+    for n in sorted(set_faces):
+        attribute = "TEXCOORD_%d" % n
+        has = [k for k, p in enumerate(primitives) if attribute in p["attributes"]]
+        got_faces = {primitives[k]["extras"]["primFace"] for k in has}
+        check(fixture, "'%s' faces with %s" % (part["name"], attribute), got_faces == set_faces[n], "got %r, want %r" % (sorted(got_faces), sorted(set_faces[n])))
+        if not has:
+            continue
+        check(fixture, "'%s' has UV map number %d" % (part["name"], n + 1), len(mesh.uv_layers) > n)
+        if len(mesh.uv_layers) > n:
+            values_at = []
+            for p in primitives:
+                values = corners(document, binary, p, attribute)
+                values_at.extend(values if values is not None else [None] * len(corners(document, binary, p, "POSITION")))
+            layer_n = mesh.uv_layers[n].data
             worst = 0.0
-            for i, value in enumerate(uv1):
+            for i, value in enumerate(values_at):
                 if value is None:
                     continue
-                worst = max(worst, abs(layer1[i].uv[0] - value[0]), abs((1.0 - layer1[i].uv[1]) - value[1]))
-            check(fixture, "'%s' second UV map equals TEXCOORD_1" % part["name"], worst <= TOLERANCE, "largest difference %g" % worst)
+                worst = max(worst, abs(layer_n[i].uv[0] - value[0]), abs((1.0 - layer_n[i].uv[1]) - value[1]))
+            check(fixture, "'%s' UV map number %d equals %s" % (part["name"], n + 1, attribute), worst <= TOLERANCE, "largest difference %g" % worst)
+    faces_second = set_faces.get(1, set())
 
     # each face shows its texture through the right material slot
     for polygon in mesh.polygons:
@@ -236,12 +263,19 @@ def check_mesh(fixture, obj, part, node, document, binary):
             check(fixture, label + " missing texture has no image", image is None)
         else:
             check(fixture, label + " shows the texture's image", image is not None and image.name.startswith(texture), "image %r, want %s" % (image.name if image else None, texture))
-        uses_second = face in faces_second
-        maps = uv_map_nodes(material)
-        if uses_second:
-            check(fixture, label + " material reads the second UV map", len(mesh.uv_layers) >= 2 and mesh.uv_layers[1].name in maps, "UV map nodes %r" % (maps,))
-        else:
-            check(fixture, label + " material reads the first UV map", len(mesh.uv_layers) < 2 or mesh.uv_layers[1].name not in maps, "UV map nodes %r" % (maps,))
+        # every map of the face reads the UV map its mapping needs
+        roles = part.get("mapSets", {}).get(str(face))
+        textures = part.get("mapTextures", {}).get(str(face))
+        if roles is None:
+            roles = {"diffuse": 1 if face in faces_second else 0}
+            textures = {"diffuse": texture}
+        for role, want in sorted(roles.items()):
+            if role == "diffuse" and face in part["textureMissing"]:
+                continue
+            read = layer_read(material, textures[role])
+            wanted = mesh.uv_layers[want].name if want < len(mesh.uv_layers) else "<no UV map number %d>" % (want + 1)
+            ok = (read is None or read == mesh.uv_layers[0].name) if want == 0 else read == wanted
+            check(fixture, label + " %s map reads UV map number %d" % (role, want + 1), ok, "reads %r, want %r" % (read, wanted))
 
 
 def main():

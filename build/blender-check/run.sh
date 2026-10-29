@@ -39,5 +39,17 @@ for pair in "ubuntu:blender" "lts:/opt/blender-lts/blender"; do
         grep -E '^FAIL' "/results/$label-$layout.log" | head -20
         [ $code -eq 0 ] || status=1
     done
+    # objects whose parts share names: what Blender calls them and what its re-exports keep (reexport.py); restore is run on the results afterwards
+    if [ -d /fixtures/identity ]; then
+        "$exe" --background --factory-startup --python /src/build/blender-check/reexport.py -- /fixtures/identity "/results/reexport-$label" "/results/$label-reexport.json" > "/results/$label-reexport.log" 2>&1
+        code=$?
+        grep -E '^(OBJECT|RESULT)' "/results/$label-reexport.log"
+        [ $code -eq 0 ] || status=1
+    fi
+    # the same for the main fixtures, whose faces have extra coordinate sets
+    "$exe" --background --factory-startup --python /src/build/blender-check/reexport.py -- /fixtures "/results/reexport-main-$label" "/results/$label-reexport-main.json" default > "/results/$label-reexport-main.log" 2>&1
+    code=$?
+    grep -E '^RESULT' "/results/$label-reexport-main.log"
+    [ $code -eq 0 ] || status=1
 done
 exit $status

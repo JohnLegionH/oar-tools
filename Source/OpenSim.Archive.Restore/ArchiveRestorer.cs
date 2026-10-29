@@ -943,7 +943,7 @@ public sealed partial class ArchiveRestorer
     private static FreshBuild MatchBuild(GlbFile user, List<PartNode> userParts, List<FreshBuild> fresh, string label)
     {
         if (userParts.Count == 0)
-            throw new RestoreException("'" + label + "' has no objects that say which part they are (no object carries a partUuid or a linkNumber). restore never matches parts by name. If the file went through Blender, Blender left the custom properties out: turn on Custom Properties (Include > Data) in the glTF export settings and export again");
+            throw new RestoreException("'" + label + "' has no objects that say which part they are (no object carries a partUuid or a linkNumber). restore never matches parts by name. If the file went through Blender, Blender left the custom properties out: turn on both Custom Properties and Attributes in the glTF export settings (Blender leaves both off by default) and export again");
         GlbNode objectNode = user.Nodes.FirstOrDefault(n => GlbFile.Str(n.Extras, "kind") == "object");
         string root = GlbFile.Str(objectNode?.Extras, "rootPartUuid");
         string entry = GlbFile.Str(objectNode?.Extras, "archiveEntry");
