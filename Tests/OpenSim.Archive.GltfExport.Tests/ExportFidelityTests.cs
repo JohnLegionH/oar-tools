@@ -329,6 +329,91 @@ public class ExportFidelityTests
         Assert.Equal("planar", x.GetProperty("mapping").GetString());
     }
 
+    private static readonly UUID MapId = UUID.Parse("a0000000-0000-4000-8000-0000000000b1");
+    private static readonly UUID MeshId = UUID.Parse("a0000000-0000-4000-8000-0000000000d1");
+
+    public static IEnumerable<object[]> Sculpts()
+    {
+        yield return new object[] { 1, "sphere" };
+        yield return new object[] { 2, "torus" };
+        yield return new object[] { 3, "plane" };
+        yield return new object[] { 4, "cylinder" };
+    }
+
+    [Theory]
+    [MemberData(nameof(Sculpts))]
+    public void TexCoord0OfASculptIsTheGeneratedMapOfEveryFaceEvenWithARotatedPlanarTexture(int sculptType, string map)
+    {
+        SculptMap sculptMap = map switch { "sphere" => SculptTests.SphereMap(), "torus" => SculptTests.TorusMap(), "plane" => SculptTests.PlaneMap(), _ => SculptTests.CylinderMap() };
+        string shape = Box(profileCurve: 0, pathCurve: 32, sculptType: sculptType, sculptTexture: MapId.ToString(), sculptEntry: true);
+        Vector3 scale = new Vector3(2, 3, 4);
+        string te = TextureEntryWith(t =>
+        {
+            Primitive.TextureEntryFace f = Face(t, 0, TexA);
+            f.TexMapType = MappingType.Planar; f.RepeatU = 3; f.RepeatV = 1; f.Rotation = 0.7f;
+        }, TexA);
+        PartSpec part = new PartSpec { Name = "Sculpt", Scale = scale, Shape = shape, TextureEntryBase64 = te };
+        List<PrimFace> faces = SculptGeometry.BuildVolume(sculptMap, sculptType, PrimParams.FromShape(Group(part).Parts[0].Shape)).Faces;
+
+        string dir = NewFolder();
+        string file = Path.Combine(dir, "sculpt.oar");
+        File.WriteAllBytes(file, OarWithAssets(new[] { ("sculpt", ObjectXml(part)) },
+            new[] { (MapId, (sbyte)AssetType.Texture, SculptTests.J2k(sculptMap)), (TexA, (sbyte)AssetType.Texture, Jp2()) }));
+        ExportSummary s = ArchiveExporter.Export(file, new ExportOptions { SelfContained = true, OutputDirectory = Path.Combine(dir, "out") });
+        SummaryBuild b = Assert.Single(s.BuildList);
+        Glb glb = ReadGlb(File.ReadAllBytes(Path.Combine(dir, "out", b.Folder, b.File)));
+
+        JsonElement[] prims = Primitives(glb).ToArray();
+        Assert.Equal(faces.Count, prims.Length);
+        Assert.NotEmpty(prims);
+        for (int i = 0; i < prims.Length; i++)
+            AssertSameBits(faces[i].Uvs, Attribute(glb, prims[i], "TEXCOORD_0"), "sculpt TEXCOORD_0 of face " + faces[i].Number);
+        // the planar face has its exact mapping in the second set and its original map in the first
+        Assert.True(Primitives(glb).Any(p => p.GetProperty("attributes").TryGetProperty("TEXCOORD_1", out _)));
+    }
+
+    [Fact]
+    public void TexCoord0OfAMeshPartIsTheMeshAssetsOwnMapForEveryFace()
+    {
+        byte[] asset = MeshTests.Asset(new[] { MeshTests.Triangle(), MeshTests.Triangle(0.25f) });
+        Assert.True(MeshAsset.TryDecode(asset, out MeshModel model, out string problem), problem);
+        string te = TextureEntryWith(t =>
+        {
+            Primitive.TextureEntryFace f = Face(t, 1, TexB);
+            f.RepeatU = 4; f.RepeatV = 2; f.Rotation = 0.6f;
+        }, TexA);
+        PartSpec part = new PartSpec
+        {
+            Name = "Mesh", Shape = Box(profileCurve: 0, pathCurve: 16, sculptType: 5, sculptTexture: MeshId.ToString(), sculptEntry: true), TextureEntryBase64 = te
+        };
+        string dir = NewFolder();
+        string file = Path.Combine(dir, "mesh.oar");
+        File.WriteAllBytes(file, OarWithAssets(new[] { ("mesh", ObjectXml(part)) },
+            new[] { (MeshId, (sbyte)AssetType.Mesh, asset), (TexA, (sbyte)AssetType.Texture, Jp2()), (TexB, (sbyte)AssetType.Texture, Jp2()) }));
+        ExportSummary s = ArchiveExporter.Export(file, new ExportOptions { SelfContained = true, OutputDirectory = Path.Combine(dir, "out") });
+        SummaryBuild b = Assert.Single(s.BuildList);
+        Glb glb = ReadGlb(File.ReadAllBytes(Path.Combine(dir, "out", b.Folder, b.File)));
+
+        JsonElement[] prims = Primitives(glb).ToArray();
+        Assert.Equal(model.Faces.Count, prims.Length);
+        for (int i = 0; i < prims.Length; i++)
+        {
+            MeshFace asked = model.Faces[i];
+            float[] got = Attribute(glb, prims[i], "TEXCOORD_0");
+            // the asset's own coordinates at each corner of each triangle (its v is up, glTF's is down)
+            float[] want = new float[asked.Indices.Length * 2];
+            for (int k = 0; k < asked.Indices.Length; k++)
+            {
+                want[k * 2] = asked.Uvs[asked.Indices[k] * 2];
+                want[k * 2 + 1] = 1f - asked.Uvs[asked.Indices[k] * 2 + 1];
+            }
+            AssertSameBits(want, got, "mesh TEXCOORD_0 of face " + asked.Number);
+        }
+        // the rotated face with unequal repeats has its transform in the second set only
+        Assert.True(PrimitiveOfFace(glb, 1).GetProperty("attributes").TryGetProperty("TEXCOORD_1", out _));
+        Assert.False(PrimitiveOfFace(glb, 0).GetProperty("attributes").TryGetProperty("TEXCOORD_1", out _));
+    }
+
     // ------------------------------------------------------------------ identity
 
     [Fact]

@@ -35,6 +35,23 @@ The code that builds faces takes the scale as a parameter, and the tests check a
 `convert` writes the mesh asset with that geometry as its high level. Its three lower levels are not the viewer's lower
 tessellations of the prim: the converter makes them by simplifying the high mesh (`LodGenerator`), as it does for any mesh.
 
+## What export keeps
+
+The README's "What export keeps" lists everything an export carries; for the geometry:
+
+* **Nothing is changed after the volume is built.** The vertices, normals, triangles and face numbers are those of the viewer's
+  volume code at its highest level of detail, written as they came out: not welded, not reduced, not reordered, not indexed.
+  `--clean` is the only option that changes them, and it is opt-in.
+* **The first UV map is the original.** `TEXCOORD_0` of each primitive is the volume's own coordinates for a prim or a sculpt and the
+  mesh asset's own coordinates for a mesh part, with v turned over for glTF. Tests compare it with the generated or decoded values
+  bit for bit, for every face of the shapes in `ExportFidelityTests`, whatever the face's texture mapping.
+* **A face's texture mapping** is `KHR_texture_transform` when that is exact, and otherwise `TEXCOORD_1`:
+  a planar face (the viewer projects each vertex onto the plane its normal points away from, one repeat per half metre of the
+  part's size, and then applies the face's transform), and a face with a rotation and unequal repeats (the viewer turns, then
+  repeats; glTF repeats, then turns). The code is `ViewerTextureMapping` in `Source/OarTools.ViewerVolume`; the extras of the
+  material list `uvSet`, `uvSetReason` and every Second Life value of the face.
+* **What glTF requires of the file:** Y up (Blender turns it back to Z up), triangles, v = 0 at the top of the image.
+
 ## How it was checked
 
 The viewer's own volume code (the profile, path and face building of `indra/llmath/llvolume.cpp`) was built as a small command-line

@@ -21,6 +21,52 @@ input as it was.
 
 `oar-tools <subcommand> --help` prints the full usage and exit codes of a subcommand.
 
+## What export keeps
+
+`export` writes each build the way the Second Life viewer builds it, and then changes nothing.
+
+* **The geometry is not altered.** The vertices, normals, triangles and face numbers are written exactly as the viewer's volume code
+  builds them (see `docs/GEOMETRY.md`): nothing is welded, no loose vertex or zero-area triangle is removed, nothing is reordered,
+  and the faces are not indexed. `--clean` is the one opt-in change: it removes duplicate and loose vertices and zero-area triangles
+  (texture coordinates, faces and face numbers never change) and stamps the file. `--no-clean` is still accepted and does nothing.
+* **The original UV map is the first UV map.** `TEXCOORD_0` of every primitive is the face's own map, never transformed: the
+  viewer's coordinates for a prim or a sculpt, and the mesh asset's own coordinates for a mesh part (glTF puts v = 0 at the top of
+  the image, so v is turned over; Blender's importer turns it back). A face's texture repeats, offset and rotation are written as
+  the material's `KHR_texture_transform` where that says them exactly. Where it cannot (a planar face, or a face rotated with
+  unequal repeats: the viewer turns the coordinates and then repeats them, glTF repeats and then turns), the exact mapping is in
+  `TEXCOORD_1` (Blender's second UV map) and only that face's material reads it. The material's extras say which set it uses and
+  why (`uvSet`, `uvSetReason`) and keep the face's texture, repeats, offsets, rotation and mapping either way.
+* **Textures and parts keep their identity.** A face's texture UUID is the material's `textureId` in its extras, the material's
+  name and the name of the image; a texture that is not in the archive still has its UUID there, and the material says
+  `missing-from-archive` and `placeholder`. Each part is a node named exactly as the part, whose extras hold its description, link
+  number, part UUID, creator UUID and creator name (when the archive has one), owner and permission masks. The object's node holds
+  the object's name, the root part's name and the parts in link order. Blender shows all of these as custom properties.
+* **Only parts whose permissions allow it are exported** (the rule below).
+* **What glTF itself requires.** Axes are Y up (a viewer vector (x, y, z) is written (x, z, -y)), which Blender's importer turns
+  back to Z up; a face is a list of triangles; images are PNG, with the original asset copied beside them. A name that two parts
+  share is kept as it is (Blender makes object names unique itself; the link number in the extras tells the parts apart).
+
+The Blender importer is the check: `build/blender-check` imports an export of every prim type, a sculpt, a mesh part, a
+multi-face part, a rotated and a planar face, a missing texture, a fifty-part linkset and a part that may not be exported, and
+compares what Blender holds (object names, vertex and face counts, the first UV map, the texture UUIDs, link numbers and creators,
+and the texture of every face's material slot) with the file and with the values the archive was made from (`docs/RELEASE.md`).
+
+### The export permission rule
+
+A part is exported unless its creator refused it. In plain words:
+
+* A part held by its creator, a library part, and a part with no known creator or owner are exported.
+* A part held by someone other than its creator is refused only when its base permission mask has the export right and neither its
+  owner mask nor its everyone mask has it (after a transfer, the creator's choice stays in the everyone mask). A part whose base
+  mask has no export right at all (an archive saved before the right existed) is exported.
+* A refused part is skipped: it has no node, no mesh, no material and no inventory in the `.glb`, and nothing of it is exported.
+  The rest of the object is exported. The part is listed in the build's `manifest.json` (status `skipped`, with the reason, its link
+  number, name, ids and masks), counted in `export-summary.json` and `export-summary.txt` (skipped, and by reason) and, when every
+  part of a build is refused, the build has no `.glb` and its manifest says so.
+* A part exports normally as soon as its permissions allow it: the owner mask or the everyone mask has the export right.
+* `convert` applies the same test: a part that fails it is not converted but kept as a prim, with the reason code `EXPORT_DENIED`.
+  `inspect` reports the same parts in its export finding.
+
 ## What oar-tools never does
 
 * It never adds a permission bit. Every subcommand that writes an archive keeps the base, owner, group, everyone and

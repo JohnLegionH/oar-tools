@@ -4,6 +4,16 @@
 
 ### Changed
 
+* **`export` changes nothing after the geometry is built.** Cleaning is no longer the default: the faces are written exactly as
+  the viewer's volume code builds them, with no welding, no removal of loose vertices or zero-area triangles, no reordering and no
+  indexing. `--clean` turns cleaning on (it needs to be asked for); `--no-clean` is still accepted and now does nothing.
+  `ExportOptions.Clean` is false unless set. A file written with `--clean` carries the same stamp as before.
+* **The original UV map is always `TEXCOORD_0`.** The export no longer writes the viewer's texture transform into a face's
+  coordinates. A face rotated with unequal repeats, and a planar face (whose projection was not applied before), carry their exact
+  mapping in `TEXCOORD_1`, read only by that face's material (`texCoord` 1, no `KHR_texture_transform`); the other faces are as before.
+  The material extras gain `uvSet` and `uvSetReason`; `uvTransformBaked` is gone. A face that has a second coordinate set is left
+  as built when `--clean` is given.
+* **The object node lists the root part's name and the parts in link order** (`rootPartName`, `linkOrder`).
 * **The viewer's volume code is its own project, licensed as the viewer's is.** The code that re-implements the Second Life
   viewer's volume generation (`ViewerVolume`, `ViewerFaceRule`, the sculpt geometry and the point counts of a path and a profile)
   moved into `Source/OarTools.ViewerVolume`, an assembly of its own licensed LGPL-2.1 only, with the viewer's copyright notice
@@ -18,6 +28,15 @@
   vertices; the face numbers and the texture coordinate convention are the same.
 * **`convert` keeps a prim as a prim** when its path type is not a line or a circle (the flexible path type, the viewer's test
   path) or its profile type is above the half circle: reason code `SHAPE_UNSUPPORTED`.
+
+### Added
+
+* `docs/GEOMETRY.md` and the README say what export keeps and state the export permission rule.
+* `build/blender-check`: imports an export with Blender's own glTF importer, in the distribution's Blender and in the current
+  long-term-support build, and checks names, counts, the first UV map, texture UUIDs, link numbers, creators and the texture of
+  each face's material slot. It is a release check (`docs/RELEASE.md`).
+* `ViewerTextureMapping` in `OarTools.ViewerVolume` (LGPL-2.1, with the viewer's notice): the planar projection and the face
+  transform the second coordinate set is made from.
 
 ## 0.5.0
 

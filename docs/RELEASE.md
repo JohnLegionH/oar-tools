@@ -35,6 +35,22 @@ output folder that does not exist yet: besides the packages it keeps the exact f
    entry (for example with Python's `zipfile` and `tarfile`, reading only) and compare them with `STAGED-FILES.txt`: every
    file matches, and nothing is extra or missing. For the Linux package, also mount its stage read-only in a Linux container
    and run `oar-tools --version` and `oar-tools inspect` on one output of the checks above.
+6. **Blender import check.** The unit tests read the `.glb` files back as JSON; this check shows that Blender's own importer reads
+   what the export writes. It runs in a throwaway container, so nothing is installed on the machine that runs it, and covers two
+   Blender versions: the Ubuntu package and the current long-term-support build from blender.org (check
+   https://www.blender.org/download/lts/ and update `BLENDER_LTS_URL` in `build/blender-check/run.sh` when the version has moved).
+   * Write the fixtures: run `BlenderFixtureTests` with `OAR_TOOLS_BLENDER_FIXTURES` set to a new, empty folder. It writes an archive
+     with every prim type, a sculpt, a mesh part, a part with six differently textured faces, a face rotated with unequal repeats,
+     planar faces, a face whose texture is not in the archive, a fifty-part linkset whose parts have numeric link prefixes, and an
+     object with a part that may not be exported; the export of it in both layouts (`default` and `--clean`); and `expected.json`,
+     the values each part and face must come back as.
+   * Run `build/blender-check/run.sh` in an `ubuntu:24.04` container with the repository mounted at `/src`, that folder at
+     `/fixtures` and an empty folder at `/results` (the command is in the script's header). For both Blender versions and both
+     layouts it imports every `.glb` headless and checks: object names equal part names; vertex and face counts equal the glTF's;
+     the first UV map equals `TEXCOORD_0` (and the second equals `TEXCOORD_1` for the faces that have one); positions equal the
+     glTF's; the texture UUID, link number, creator and description of every part and material can be read from the custom
+     properties; every face shows its texture through the right material slot; a part that may not be exported is not in the file.
+   * Every check must pass in both versions. Record the two Blender versions and the counts in the release notes.
 
 ## Publish
 
