@@ -199,4 +199,14 @@ public class WrapperAndDispatchTests
             Assert.True(File.Exists(Path.Combine(RepoRoot(), "wrappers", "oar-" + sub)), "oar-" + sub);
         }
     }
+
+    [Theory]
+    [InlineData(typeof(OpenSim.Archive.Converter.Merge.ArchiveMergePlanner))]
+    [InlineData(typeof(OpenSim.Archive.Eligibility.ArchiveEligibility))]
+    public void TheVersionAReportCarriesIsTheRelease(Type fromTheAssembly)
+    {
+        string stamped = System.Reflection.CustomAttributeExtensions
+            .GetCustomAttribute<System.Reflection.AssemblyInformationalVersionAttribute>(fromTheAssembly.Assembly)?.InformationalVersion;
+        Assert.Equal(ToolRelease.Version, stamped);
+    }
 }
