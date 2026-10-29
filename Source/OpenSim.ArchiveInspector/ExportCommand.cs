@@ -171,9 +171,18 @@ Exit codes: 0 done (also when some builds failed), 2 not a region archive or unr
         return summary.ExitCode;
     }
 
-    /// <summary>Holds the managed heap to the memory cap, so the cap is a limit and not only a target. Best effort: the runtime refuses a limit below what is already in use.</summary>
+    private static int s_heapLimitSet;
+
+    /// <summary>
+    /// Holds the managed heap to the memory cap, so the cap is a limit and not only a target. Best effort: the runtime refuses a
+    /// limit below what is already in use. The limit belongs to the process and is set by the first export only: the default cap
+    /// is worked out from the memory the runtime reports as available, which after this call is the limit itself, so a second
+    /// export in the same process would set half of it, a third a quarter, and so on.
+    /// </summary>
     private static void LimitManagedMemory(int megabytes)
     {
+        if (Interlocked.Exchange(ref s_heapLimitSet, 1) != 0)
+            return;
         try
         {
             AppContext.SetData("GCHeapHardLimit", (ulong)megabytes * 1024UL * 1024UL);

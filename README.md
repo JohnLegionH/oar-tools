@@ -14,6 +14,11 @@ subcommands. It reads archives, reports on them, and writes new ones; it does no
 | `scan` | Reads the scripts and says which parts could break if they became mesh. |
 | `eligibility` | Decides which parts become mesh and which stay as they are, with the reason for each. |
 
+`inspect`, `report`, `compare`, `scan` and `eligibility` only read: they never write an archive and never change the archives
+they are given; they print a report, and write report files only where `--out` or `--json` names a place for them. `export`
+writes `.glb` files and textures; `restore` and `convert` write a new OAR (or IAR, for `convert --relink-from`) and leave the
+input as it was.
+
 `oar-tools <subcommand> --help` prints the full usage and exit codes of a subcommand.
 
 ## What oar-tools never does
@@ -21,8 +26,9 @@ subcommands. It reads archives, reports on them, and writes new ones; it does no
 * It never adds a permission bit. Every subcommand that writes an archive keeps the base, owner, group, everyone and
   next-owner masks of every part and every item it carried over exactly as they were, and sets no export bit. A test runs
   each of those subcommands over archives with restricted masks and fails if any mask gains a bit
-  (`PermissionGuardTests`). The manifest notecard that `convert --merge` adds is a new item; it gets every permission bit
-  of a full mask except export.
+  (`PermissionGuardTests`). The manifest notecard that `convert --merge` adds is a new item; it gets the masks of the
+  parts it describes (the parts of one merged part have identical masks; if they ever differed, it would get the bits they
+  all have), so it is never more permissive than they are.
 * It never changes who created or owns something that is in the archive. `restore` gives a part or texture it adds
   (a node with no part id in the `.glb`) a creator: the owner of the root part, or the one named with `--creator`; the
   report lists each of them.
@@ -57,15 +63,33 @@ It needs no .NET installation; the runtime is part of the program.
 
 ## The old program names
 
-Before 0.5.0 the tools were separate programs: `oar-inspect`, `oar-export`, `oar-restore`, `oar-convert` (and, in the
-repository they came from, `oar-import` and `oar-texfetch`, which are not part of oar-tools). For this release the package
-holds a wrapper script for each of the first four, in `.cmd` form on Windows and as a shell script on Linux. A wrapper
-calls the program in the same folder with the subcommand name and passes its arguments through unchanged, so
+Before 0.5.0 the tools were separate programs, or modes of one program named by its first argument. Each has a subcommand
+now:
+
+| Before 0.5.0 | Now |
+|---|---|
+| `oar-inspect <archive>` | `oar-tools inspect <archive>` |
+| `OpenSim.ArchiveInspector <archive>` (the bare-archive mode, with `--json`, `--all`, `--stats`) | `oar-tools report <archive>` |
+| `oar-export` | `oar-tools export` |
+| `oar-restore` | `oar-tools restore` |
+| `oar-convert` | `oar-tools convert` |
+| `oar-convert --merge`, `oar-convert --relink-from` | `oar-tools convert --merge`, `oar-tools convert --relink-from` |
+| `oar-compare` | `oar-tools compare` |
+| `oar-scan` | `oar-tools scan` |
+| `oar-eligibility` | `oar-tools eligibility` |
+| `oar-convert --fix-perms`, `--creator` | removed (changing permissions is outside what this tool does) |
+| `oar-import`, `oar-texfetch` | removed |
+
+The options of each subcommand are those of the program it replaces. For this release the package holds a wrapper script for
+`oar-inspect`, `oar-export`, `oar-restore` and `oar-convert`, in `.cmd` form on Windows and as a shell script on Linux. A
+wrapper calls the program in the same folder with the subcommand name and passes its arguments through unchanged, so
 `oar-convert in.oar --out out.oar` does what `oar-tools convert in.oar --out out.oar` does, and the exit code is the
 program's. `--help` through a wrapper ends with a line saying that the old name is going away. The wrappers will be removed
-in a later release; use `oar-tools <subcommand>`.
+in a later release; use `oar-tools <subcommand>`. There is no wrapper for `oar-compare`, `oar-scan`, `oar-eligibility` or the
+bare-archive mode: use the subcommand.
 
-`oar-tools` also accepts the old name as its first argument (`oar-tools oar-convert ...`) and treats it the same way.
+`oar-tools` also accepts an old name as its first argument (`oar-tools oar-convert ...`, `oar-tools oar-scan ...`) and treats
+it the same way.
 
 ## Permissions and the export bit
 

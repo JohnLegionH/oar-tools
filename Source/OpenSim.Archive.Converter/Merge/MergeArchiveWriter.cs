@@ -354,7 +354,8 @@ public static class MergeArchiveWriter
         int physicsType = carrier.PhysicsShapeType;
         // a part alone in its object is link number 0, as the region writes it
         int linkNum = lp.PartsAfter == 1 ? 0 : mp.NewLinkNum;
-        rewriter.AddPatch(new PartPatch(mp.Id, (PartView view) => CarrierEdits(view, mp, g, faceCount, meshId, extra, textureEntry, carrierIsRoot, noteAsset, noteItem, physicsType, linkNum, extras)));
+        PermissionMasks noteMasks = MostRestrictive(mp.Members.Select(x => parsed[x.PartId].Part.Masks));
+        rewriter.AddPatch(new PartPatch(mp.Id, (PartView view) => CarrierEdits(view, mp, g, faceCount, meshId, extra, textureEntry, carrierIsRoot, noteAsset, noteItem, noteMasks, physicsType, linkNum, extras)));
         foreach (MemberPlan x in mp.Members.Skip(1))
             rewriter.RemovePart(x.PartId);
 
@@ -483,7 +484,7 @@ public static class MergeArchiveWriter
     private static string F(float v) => v.ToString("R", CultureInfo.InvariantCulture);
 
     private static IReadOnlyList<ElementEdit> CarrierEdits(PartView view, MergedPartPlan mp, MergedGeometry g, int faceCount, Guid meshId, byte[] extra, string textureEntry,
-        bool carrierIsRoot, Guid noteAsset, Guid noteItem, int physicsType, int linkNum, FaceExtrasOut extras)
+        bool carrierIsRoot, Guid noteAsset, Guid noteItem, PermissionMasks noteMasks, int physicsType, int linkNum, FaceExtrasOut extras)
     {
         List<ElementEdit> edits = new List<ElementEdit>();
         void Need(string path)
@@ -544,14 +545,28 @@ public static class MergeArchiveWriter
             edits.Add(ElementEdit.SetTextOrAdd("PhysicsShapeType", "0"));
 
         // a part with no inventory element gets one; its other contents (none, for a part that can merge) are not touched
-        edits.Add(ElementEdit.SetInnerXmlOrAdd("TaskInventory", NotecardItem(view, mp.Id, noteAsset, noteItem)));
+        edits.Add(ElementEdit.SetInnerXmlOrAdd("TaskInventory", NotecardItem(view, mp.Id, noteAsset, noteItem, noteMasks)));
         return edits;
     }
 
     /// <summary>The masks a merged part's notecard gets: the most restrictive of the masks of the parts merged into it.</summary>
-    public static PermissionMasks MostRestrictive(IEnumerable<PermissionMasks> masks) => null;
+    public static PermissionMasks MostRestrictive(IEnumerable<PermissionMasks> masks)
+    {
+        PermissionMasks result = new PermissionMasks();
+        // a mask is the bits every part has; a part that does not give a mask does not narrow it
+        static uint? And(uint? a, uint? b) => a.HasValue && b.HasValue ? a.Value & b.Value : a ?? b;
+        foreach (PermissionMasks m in masks)
+        {
+            result.Base = And(result.Base, m.Base);
+            result.Owner = And(result.Owner, m.Owner);
+            result.Group = And(result.Group, m.Group);
+            result.Everyone = And(result.Everyone, m.Everyone);
+            result.NextOwner = And(result.NextOwner, m.NextOwner);
+        }
+        return result;
+    }
 
-    private static string NotecardItem(PartView view, Guid part, Guid asset, Guid item)
+    private static string NotecardItem(PartView view, Guid part, Guid asset, Guid item, PermissionMasks masks)
     {
         string Uuid(string path)
         {
@@ -561,21 +576,21 @@ public static class MergeArchiveWriter
         string owner = Uuid("OwnerID"), creator = Uuid("CreatorID"), group = Uuid("GroupID");
         if (!long.TryParse(view.Text("CreationDate"), NumberStyles.Integer, CultureInfo.InvariantCulture, out long when))
             when = 0;
-        // The notecard is the tool's own text, so it gets the owner's usual rights on it: every bit of a full mask except the export
-        // bit. oar-tools never sets the export bit on anything.
-        const string notecardMask = "2147418111";
+        // The notecard describes the parts it replaced, so it gets their masks and no more: it can never be copied, changed or passed
+        // on where the parts could not. (A mask the parts do not give is 0.)
+        string Mask(uint? m) => (m ?? 0).ToString(CultureInfo.InvariantCulture);
         StringBuilder sb = new StringBuilder();
         sb.Append("<TaskInventoryItem>");
         sb.Append("<AssetID><UUID>").Append(asset).Append("</UUID></AssetID>");
-        sb.Append("<BasePermissions>").Append(notecardMask).Append("</BasePermissions><CreationDate>").Append(when.ToString(CultureInfo.InvariantCulture)).Append("</CreationDate>");
+        sb.Append("<BasePermissions>").Append(Mask(masks.Base)).Append("</BasePermissions><CreationDate>").Append(when.ToString(CultureInfo.InvariantCulture)).Append("</CreationDate>");
         sb.Append("<CreatorID><UUID>").Append(creator).Append("</UUID></CreatorID>");
-        sb.Append("<Description>Parts this merged part replaced</Description><EveryonePermissions>0</EveryonePermissions><Flags>0</Flags>");
+        sb.Append("<Description>Parts this merged part replaced</Description><EveryonePermissions>").Append(Mask(masks.Everyone)).Append("</EveryonePermissions><Flags>0</Flags>");
         sb.Append("<GroupID><UUID>").Append(group).Append("</UUID></GroupID>");
-        sb.Append("<GroupPermissions>0</GroupPermissions><InvType>").Append(NotecardAssetType).Append("</InvType>");
+        sb.Append("<GroupPermissions>").Append(Mask(masks.Group)).Append("</GroupPermissions><InvType>").Append(NotecardAssetType).Append("</InvType>");
         sb.Append("<ItemID><UUID>").Append(item).Append("</UUID></ItemID><OldItemID><UUID>").Append(Guid.Empty).Append("</UUID></OldItemID>");
         sb.Append("<LastOwnerID><UUID>").Append(owner).Append("</UUID></LastOwnerID>");
-        sb.Append("<Name>").Append(SecurityElement.Escape(ManifestName)).Append("</Name><NextPermissions>581632</NextPermissions>");
-        sb.Append("<OwnerID><UUID>").Append(owner).Append("</UUID></OwnerID><CurrentPermissions>").Append(notecardMask).Append("</CurrentPermissions>");
+        sb.Append("<Name>").Append(SecurityElement.Escape(ManifestName)).Append("</Name><NextPermissions>").Append(Mask(masks.NextOwner)).Append("</NextPermissions>");
+        sb.Append("<OwnerID><UUID>").Append(owner).Append("</UUID></OwnerID><CurrentPermissions>").Append(Mask(masks.Owner)).Append("</CurrentPermissions>");
         sb.Append("<ParentID><UUID>").Append(part).Append("</UUID></ParentID><ParentPartID><UUID>").Append(part).Append("</UUID></ParentPartID>");
         sb.Append("<PermsGranter><UUID>").Append(Guid.Empty).Append("</UUID></PermsGranter><PermsMask>0</PermsMask>");
         sb.Append("<Type>").Append(NotecardAssetType).Append("</Type><OwnerChanged>false</OwnerChanged></TaskInventoryItem>");
