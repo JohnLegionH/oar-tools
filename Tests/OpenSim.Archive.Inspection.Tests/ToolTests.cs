@@ -36,7 +36,7 @@ public class ToolTests
         Console.SetError(e);
         try
         {
-            int code = OpenSim.ArchiveInspector.Program.Main(args);
+            int code = OpenSim.ArchiveInspector.Program.Main(new[] { "report" }.Concat(args).ToArray());
             return (code, o.ToString(), e.ToString());
         }
         finally

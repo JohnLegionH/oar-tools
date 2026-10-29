@@ -1,0 +1,7 @@
+wrappers/oar-inspect text eol=lf
+wrappers/oar-export text eol=lf
+wrappers/oar-restore text eol=lf
+wrappers/oar-convert text eol=lf
+wrappers/*.cmd text eol=crlf
+*.sh text eol=lf
+build/*.sh text eol=lf

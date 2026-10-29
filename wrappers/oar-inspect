@@ -1,0 +1,7 @@
+#!/bin/sh
+# Copyright (c) 2026 Legion Builds. BSD-3-Clause, see LICENSE.
+# oar-inspect is the old name of "oar-tools inspect". It still works in this release and passes its arguments through.
+self=$0
+if [ -L "$self" ]; then self=$(readlink -f -- "$self"); fi
+dir=$(CDPATH= cd -- "$(dirname -- "$self")" && pwd)
+OAR_TOOLS_LEGACY_NAME=oar-inspect exec "$dir/oar-tools" inspect "$@"

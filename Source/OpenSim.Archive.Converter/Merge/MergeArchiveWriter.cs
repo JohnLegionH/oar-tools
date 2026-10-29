@@ -558,10 +558,13 @@ public static class MergeArchiveWriter
         string owner = Uuid("OwnerID"), creator = Uuid("CreatorID"), group = Uuid("GroupID");
         if (!long.TryParse(view.Text("CreationDate"), NumberStyles.Integer, CultureInfo.InvariantCulture, out long when))
             when = 0;
+        // The notecard is the tool's own text, so it gets the owner's usual rights on it: every bit of a full mask except the export
+        // bit. oar-tools never sets the export bit on anything.
+        const string notecardMask = "2147418111";
         StringBuilder sb = new StringBuilder();
         sb.Append("<TaskInventoryItem>");
         sb.Append("<AssetID><UUID>").Append(asset).Append("</UUID></AssetID>");
-        sb.Append("<BasePermissions>2147483647</BasePermissions><CreationDate>").Append(when.ToString(CultureInfo.InvariantCulture)).Append("</CreationDate>");
+        sb.Append("<BasePermissions>").Append(notecardMask).Append("</BasePermissions><CreationDate>").Append(when.ToString(CultureInfo.InvariantCulture)).Append("</CreationDate>");
         sb.Append("<CreatorID><UUID>").Append(creator).Append("</UUID></CreatorID>");
         sb.Append("<Description>Parts this merged part replaced</Description><EveryonePermissions>0</EveryonePermissions><Flags>0</Flags>");
         sb.Append("<GroupID><UUID>").Append(group).Append("</UUID></GroupID>");
@@ -569,7 +572,7 @@ public static class MergeArchiveWriter
         sb.Append("<ItemID><UUID>").Append(item).Append("</UUID></ItemID><OldItemID><UUID>").Append(Guid.Empty).Append("</UUID></OldItemID>");
         sb.Append("<LastOwnerID><UUID>").Append(owner).Append("</UUID></LastOwnerID>");
         sb.Append("<Name>").Append(SecurityElement.Escape(ManifestName)).Append("</Name><NextPermissions>581632</NextPermissions>");
-        sb.Append("<OwnerID><UUID>").Append(owner).Append("</UUID></OwnerID><CurrentPermissions>2147483647</CurrentPermissions>");
+        sb.Append("<OwnerID><UUID>").Append(owner).Append("</UUID></OwnerID><CurrentPermissions>").Append(notecardMask).Append("</CurrentPermissions>");
         sb.Append("<ParentID><UUID>").Append(part).Append("</UUID></ParentID><ParentPartID><UUID>").Append(part).Append("</UUID></ParentPartID>");
         sb.Append("<PermsGranter><UUID>").Append(Guid.Empty).Append("</UUID></PermsGranter><PermsMask>0</PermsMask>");
         sb.Append("<Type>").Append(NotecardAssetType).Append("</Type><OwnerChanged>false</OwnerChanged></TaskInventoryItem>");

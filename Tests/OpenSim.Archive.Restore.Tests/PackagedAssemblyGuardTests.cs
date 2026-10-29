@@ -22,7 +22,7 @@ public class PackagedAssemblyGuardTests
     {
         "OpenSim.Archive.Compare", "OpenSim.Archive.Converter", "OpenSim.Archive.Eligibility", "OpenSim.Archive.GltfExport",
         "OpenSim.Archive.Inspection", "OpenSim.Archive.Restore", "OpenSim.Archive.Rewrite", "OpenSim.Archive.ScriptScan",
-        "OpenSim.ArchiveInspector",
+        "oar-tools",
     };
 
     private static bool IsHashType(string name) =>

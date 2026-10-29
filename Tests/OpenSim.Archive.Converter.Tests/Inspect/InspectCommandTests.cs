@@ -223,7 +223,7 @@ public class InspectCommandTests
     {
         var r = Run("--help");
         Assert.Equal(0, r.code);
-        Assert.Contains("Usage: oar-inspect", r.output);
+        Assert.Contains("Usage: oar-tools inspect", r.output);
         Assert.Contains("--compare", r.output);
     }
 
@@ -232,7 +232,7 @@ public class InspectCommandTests
     {
         var r = Run("--version");
         Assert.Equal(0, r.code);
-        Assert.Equal("oar-inspect " + ToolRelease.Version, r.output.Trim());
+        Assert.Equal("oar-tools " + ToolRelease.Version, r.output.Trim());
     }
 
     [Fact]

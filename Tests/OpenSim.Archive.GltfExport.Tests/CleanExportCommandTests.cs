@@ -62,6 +62,6 @@ public class CleanExportCommandTests
     {
         (int exit, string output) = Run("--version");
         Assert.Equal(0, exit);
-        Assert.Contains("oar-export " + ToolRelease.Version, output);
+        Assert.Contains("oar-tools " + ToolRelease.Version, output);
     }
 }

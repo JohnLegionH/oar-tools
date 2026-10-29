@@ -41,7 +41,7 @@ public class CleanConvertCommandTests
         Console.SetOut(capture);
         try { Assert.Equal(0, ConvertCommand.Run(new[] { "--version" })); }
         finally { Console.SetOut(saved); }
-        Assert.Contains("oar-convert 0.4.4", capture.ToString());
+        Assert.Contains("oar-tools " + ToolRelease.Version, capture.ToString());
     }
 
     private static string VersionLine(Func<string[], int> run)
