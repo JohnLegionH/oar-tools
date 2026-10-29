@@ -138,4 +138,22 @@ public class ViewerGeometryTests
         Assert.Equal(PrimGeometry.BuildFaces(p, 4f, out int a, out _).Sum(f => f.TriangleCount), PrimGeometry.BuildFaces(p, DetailLevel.High, out int b, out _).Sum(f => f.TriangleCount));
         Assert.Equal(a, b);
     }
+
+    [Theory]
+    [InlineData(16, 1, false)]
+    [InlineData(32, 5, false)]
+    [InlineData(48, 0, false)]
+    [InlineData(64, 1, true)]
+    [InlineData(128, 1, true)]
+    [InlineData(0, 1, true)]
+    [InlineData(16, 6, true)]
+    [InlineData(32, 7, true)]
+    public void OnlyThePathAndProfileTypesTheExportBuildsAreSupported(int pathCurve, int profileCurve, bool unsupported)
+    {
+        PrimParams p = PrimParams.FromShape(new ShapeData { ProfileCurve = profileCurve, PathCurve = pathCurve, PathScaleX = 100, PathScaleY = 100 });
+        string reason = PrimGeometry.UnsupportedReason(p);
+        Assert.Equal(unsupported, reason != null);
+        if (unsupported)
+            Assert.Contains(profileCurve > 5 ? "profile" : "path", reason);
+    }
 }

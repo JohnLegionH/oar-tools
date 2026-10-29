@@ -126,6 +126,22 @@ public static class PrimGeometry
     /// <summary>The viewer's detail scale at its highest level of detail (the last of its four: 1, 1.5, 2.5 and 4).</summary>
     public const float HighestDetail = 4f;
 
+    /// <summary>
+    /// Why the export cannot build this prim's faces the way the viewer does, or null when it can. It builds the viewer's straight
+    /// path (16) and its two circular paths (32 and 48), and the profiles up to the half circle (0 to 5); any other type is a shape
+    /// the viewer draws in a way that was not checked (the flexible path bends with the part, the test path has its own points).
+    /// </summary>
+    public static string UnsupportedReason(PrimParams p)
+    {
+        int path = p.PathCurve & 0xF0;
+        if (path != 0x10 && path != 0x20 && path != 0x30)
+            return "the path type is " + p.PathCurve + ", not a line or a circle";
+        int profile = p.ProfileCurve & 0x0F;
+        if (profile > 5)
+            return "the profile type is " + profile + ", not one of the six the viewer draws as a prim";
+        return null;
+    }
+
     private static float DetailOf(DetailLevel lod) => lod == DetailLevel.Low ? 1f : lod == DetailLevel.Medium ? 2f : HighestDetail;
 
     // The viewer gives a round profile 6 sides for every unit of detail (MIN_DETAIL_FACES in llvolume.h), rounded down.

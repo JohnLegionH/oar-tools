@@ -243,6 +243,9 @@ public sealed class ArchiveEligibility
             Add(PartAction.KeepPrim, unsafeHit ? ReasonCodes.ScriptUnsafe : ReasonCodes.ScriptUncertain, detail);
         }
 
+        if (isPrimCode && !isSculpt && PrimGeometry.UnsupportedReason(PrimParams.FromShape(shape)) is string unsupported)
+            Add(PartAction.KeepPrim, ReasonCodes.ShapeUnsupported, unsupported);
+
         if (isPrimCode && !isSculpt && er.ServerFaces != er.ViewerFaces && FaceRuleCases.Explain(shape) == null)
             Add(PartAction.KeepPrim, ReasonCodes.FaceRuleUnverified, "the server counts " + er.ServerFaces + " sides and the viewer " + er.ViewerFaces + ", and the difference is not one the viewer source has been checked for");
 

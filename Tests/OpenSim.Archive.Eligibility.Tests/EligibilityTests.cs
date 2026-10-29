@@ -144,17 +144,6 @@ public class EligibilityTests
         Assert.Contains("path", row.Reasons[0].Detail);
     }
 
-    [Fact]
-    public void APrimWithAProfileTypeBeyondTheHalfCircleIsKept()
-    {
-        OpenSim.Archive.Inspection.ShapeData shape = FaceMatrix.Shape("box", "plain");
-        shape.ProfileCurve = 6;
-        EligibilityRow row = One(new KitPart("OddProfile") { Shape = shape });
-        Assert.Equal(PartAction.KeepPrim, row.Action);
-        Assert.Equal(ReasonCodes.ShapeUnsupported, row.Code);
-        Assert.Contains("profile", row.Reasons[0].Detail);
-    }
-
     [Theory]
     [InlineData(16)]
     [InlineData(32)]
