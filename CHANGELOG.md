@@ -1,8 +1,28 @@
 # Changelog
 
-## Unreleased
+## 0.6.0
+
+**Redo earlier exports.** The geometry of an export now matches what the Second Life viewer draws, and the texture coordinates and
+the permission rule changed (below), so `.glb` files written by 0.5.0 and earlier should be exported again.
 
 ### Changed
+
+* **Which parts export follows Firestorm.** Each part is judged as if its owner asked to export it. The creator who owns the part
+  exports it. A part whose base mask has the export right exports only if the owner mask or the everyone mask has it (as before).
+  A part whose base mask lacks the export right (older content) used to export for anyone; it now exports only if the owner mask has
+  modify, copy and transfer. Library parts and parts with an unknown creator or owner no longer pass automatically; they go through
+  the same checks. `convert` uses the same function for `EXPORT_DENIED`. `inspect`'s export finding is unchanged.
+* **Every texture map reads the coordinate set that holds its exact mapping.** A legacy normal map, and the textures of a PBR
+  material, that cannot be said with `KHR_texture_transform` on `TEXCOORD_0` (a planar face, which the viewer projects for the normal
+  map too, or a rotation with unequal repeats) read an extra set (`TEXCOORD_1`, `TEXCOORD_2`, ...); maps with the same mapping share
+  a set. The material extras gain `mapUvSets` and `extraUvSets`. Before, only the diffuse texture had its exact mapping, and the other
+  maps could sit differently from it.
+* **`restore` never matches a part by name.** It uses the part UUID, or the link number when the UUID is gone. A file without custom
+  properties is refused with a message naming the Blender options to turn on (Custom Properties and Attributes). Two objects carrying
+  one part UUID are refused unless exactly one still has the part's own name; two objects with one link number and no UUID are refused.
+* **`restore` warns when an extra UV set was edited** (the export records a hash of each in the mesh extras): the edit is not carried
+  back; edit Blender's first UV map instead.
+* **`--no-clean`** is accepted and ignored: cleaning was the default before 0.6.0 and is now opt-in with `--clean`.
 
 * **`export` changes nothing after the geometry is built.** Cleaning is no longer the default: the faces are written exactly as
   the viewer's volume code builds them, with no welding, no removal of loose vertices or zero-area triangles, no reordering and no
@@ -31,6 +51,8 @@
 
 ### Added
 
+* `build/blender-check` also exports objects whose parts share names through Blender three ways and runs `restore` on the results
+  (README, "Editing the files in Blender"); the Blender check follows each map to the UV map it reads.
 * `docs/GEOMETRY.md` and the README say what export keeps and state the export permission rule.
 * `build/blender-check`: imports an export with Blender's own glTF importer, in the distribution's Blender and in the current
   long-term-support build, and checks names, counts, the first UV map, texture UUIDs, link numbers, creators and the texture of

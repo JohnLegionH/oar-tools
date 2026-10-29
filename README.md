@@ -31,17 +31,22 @@ input as it was.
   (texture coordinates, faces and face numbers never change) and stamps the file. `--no-clean` is still accepted and does nothing.
 * **The original UV map is the first UV map.** `TEXCOORD_0` of every primitive is the face's own map, never transformed: the
   viewer's coordinates for a prim or a sculpt, and the mesh asset's own coordinates for a mesh part (glTF puts v = 0 at the top of
-  the image, so v is turned over; Blender's importer turns it back). A face's texture repeats, offset and rotation are written as
-  the material's `KHR_texture_transform` where that says them exactly. Where it cannot (a planar face, or a face rotated with
-  unequal repeats: the viewer turns the coordinates and then repeats them, glTF repeats and then turns), the exact mapping is in
-  `TEXCOORD_1` (Blender's second UV map) and only that face's material reads it. The material's extras say which set it uses and
-  why (`uvSet`, `uvSetReason`) and keep the face's texture, repeats, offsets, rotation and mapping either way.
+  the image, so v is turned over; Blender's importer turns it back). Every map a face uses (the diffuse texture, a legacy normal map
+  and the textures of a PBR material) reads `TEXCOORD_0` through `KHR_texture_transform` where that says its mapping exactly. Where
+  it cannot (a planar face, whose projection the viewer applies to the normal map too, or a map rotated with unequal repeats: the
+  viewer turns the coordinates and then repeats them, glTF repeats and then turns), that map's exact mapping is in an extra set,
+  `TEXCOORD_1` (Blender's second UV map), `TEXCOORD_2` and so on, and only the material slots of those maps read it. Maps of one
+  face whose mappings agree to a thousandth share a set. The material's extras say which set each map reads (`mapUvSets`, and
+  `uvSet`, `uvSetReason` for the diffuse texture), describe each extra set (`extraUvSets`) and keep the face's texture, repeats,
+  offsets, rotation and mapping either way. A legacy specular map has no slot in glTF: its mapping is in the extras only. A PBR
+  texture has no transform of its own here; on a planar face it reads the face's projection.
 * **Textures and parts keep their identity.** A face's texture UUID is the material's `textureId` in its extras, the material's
   name and the name of the image; a texture that is not in the archive still has its UUID there, and the material says
   `missing-from-archive` and `placeholder`. Each part is a node named exactly as the part, whose extras hold its description, link
   number, part UUID, creator UUID and creator name (when the archive has one), owner and permission masks. The object's node holds
   the object's name, the root part's name and the parts in link order. Blender shows all of these as custom properties.
 * **Only parts whose permissions allow it are exported** (the rule below).
+* **Editing in Blender.** See "Editing the files in Blender" below for the export settings that keep the part identity.
 * **What glTF itself requires.** Axes are Y up (a viewer vector (x, y, z) is written (x, z, -y)), which Blender's importer turns
   back to Z up; a face is a list of triangles; images are PNG, with the original asset copied beside them. A name that two parts
   share is kept as it is (Blender makes object names unique itself; the link number in the extras tells the parts apart).
@@ -53,19 +58,42 @@ and the texture of every face's material slot) with the file and with the values
 
 ### The export permission rule
 
-A part is exported unless its creator refused it. In plain words:
+Each part is judged as if its owner asked to export it, following Firestorm. For a grid that advertises export support Firestorm's
+`LLPermissions::allowOpenSimExportBy` lets the creator export and anyone else only with the export right in the owner mask; for a grid
+that does not, the policy in `fsexportperms.cpp` wants full permissions. oar-tools applies the first where a part's base mask carries
+the export right and the second where it does not:
 
-* A part held by its creator, a library part, and a part with no known creator or owner are exported.
-* A part held by someone other than its creator is refused only when its base permission mask has the export right and neither its
-  owner mask nor its everyone mask has it (after a transfer, the creator's choice stays in the everyone mask). A part whose base
-  mask has no export right at all (an archive saved before the right existed) is exported.
+* **The owner is the part's creator:** exported, whatever the masks say.
+* **The base mask has the export right:** exported only if the owner mask or the everyone mask has it (after a transfer, the creator's
+  choice stays in the everyone mask).
+* **The base mask lacks the export right** (content saved before the right existed): exported only if the owner mask has modify,
+  copy and transfer.
+* Nothing else is exported automatically: library parts and parts with an unknown creator or owner go through the same checks, and a
+  part with no masks counts as having no rights. An unknown creator is never taken to be the unknown owner.
 * A refused part is skipped: it has no node, no mesh, no material and no inventory in the `.glb`, and nothing of it is exported.
   The rest of the object is exported. The part is listed in the build's `manifest.json` (status `skipped`, with the reason, its link
   number, name, ids and masks), counted in `export-summary.json` and `export-summary.txt` (skipped, and by reason) and, when every
   part of a build is refused, the build has no `.glb` and its manifest says so.
-* A part exports normally as soon as its permissions allow it: the owner mask or the everyone mask has the export right.
+* A part exports normally as soon as its permissions allow it.
 * `convert` applies the same test: a part that fails it is not converted but kept as a prim, with the reason code `EXPORT_DENIED`.
-  `inspect` reports the same parts in its export finding.
+  `inspect`'s export finding is not changed: it counts held parts whose base mask has the export right and whose owner and everyone
+  masks lack it (the creator withdrew the right), which is the first of the two refusal cases above.
+
+### Editing the files in Blender
+
+`restore` reads the files back. It finds the part behind each object by the part UUID, or the link number, in the object's custom
+properties, and never by name: Blender renames objects that share a name (`Object`, `Object.001`, ...), and a name can be another
+part's name. Blender's glTF export leaves out the custom properties and the custom attributes by default, so turn these on in the
+glTF export settings, or `restore` has nothing to go by:
+
+* **Custom Properties** (`export_extras`): the part UUID, link number, creator and the rest of the extras, and the hashes of the extra
+  UV sets. Without it `restore` refuses the file and says so; it does not guess from the names.
+* **Attributes** (`export_attributes`): the prim face number of every triangle (`_PRIM_FACE`). Without it `restore` refuses each part
+  with `FACE_NUMBERS_LOST`.
+
+`restore` reads the first UV map (`TEXCOORD_0`) as the part's texture coordinates. The extra sets hold what the viewer draws and are not
+read back: if one was edited (the file records a hash of each), `restore` warns for that face and part that the edit is not carried
+back. **If the texture coordinates must change, edit Blender's first UV map.**
 
 ## What oar-tools never does
 
@@ -87,7 +115,7 @@ Download the package for your system from the releases page, check it against `S
 folder. The package holds the program, the two native libraries it loads (the image library and the mesh optimiser), the
 wrapper scripts, and the licence files. Keep the files together.
 
-**Windows** (`oar-tools-0.5.0-windows-x64.zip`): unpack, then run `oar-tools.exe` from that folder, or add the folder to
+**Windows** (`oar-tools-0.6.0-windows-x64.zip`): unpack, then run `oar-tools.exe` from that folder, or add the folder to
 `PATH`.
 
 ```
@@ -95,12 +123,12 @@ oar-tools.exe inspect region.oar
 oar-tools.exe convert region.oar --out region-mesh.oar
 ```
 
-**Linux** (`oar-tools-0.5.0-linux-x64.tar.gz`): unpack, then run `oar-tools` from that folder, or link it into a folder on
+**Linux** (`oar-tools-0.6.0-linux-x64.tar.gz`): unpack, then run `oar-tools` from that folder, or link it into a folder on
 `PATH` (a link to the program or to a wrapper is followed, so the files beside it are found).
 
 ```
-tar -xzf oar-tools-0.5.0-linux-x64.tar.gz
-./oar-tools-0.5.0-linux-x64/oar-tools inspect region.oar
+tar -xzf oar-tools-0.6.0-linux-x64.tar.gz
+./oar-tools-0.6.0-linux-x64/oar-tools inspect region.oar
 ```
 
 The Linux program starts on a system without OpenSSL: the bundled OpenMetaverse libraries are rewritten when the package is

@@ -10,5 +10,5 @@ namespace OpenSim.ArchiveInspector;
 /// <summary>The release of oar-tools, printed by oar-tools --version. It is separate from <see cref="OpenSim.Archive.GltfExport.ExportStamp.CurrentVersion"/>, the file format version written into a .glb, which only changes when the .glb itself changes.</summary>
 internal static class ToolRelease
 {
-    public const string Version = "0.5.0";
+    public const string Version = "0.6.0";
 }

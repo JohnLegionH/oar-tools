@@ -42,7 +42,7 @@ The archive is only read. Parts whose creator did not allow export are listed in
                        numbers are never changed); the file is then indexed and stamped with the version. Without it the geometry is
                        written exactly as the viewer's volume code builds it: nothing is welded, removed or reordered
   --no-clean           accepted and ignored: the geometry is already written as built unless --clean is given (cleaning was the default
-                       before version 0.5.1)
+                       before version 0.6.0)
   --force              write every build again; by default a build that an earlier run into the same folder wrote from the
                        same object file with the same tool version is left as it is
   --progress-every N   print progress after every N builds (default 25) and at least every ten seconds, on standard error

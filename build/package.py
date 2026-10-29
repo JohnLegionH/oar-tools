@@ -1,7 +1,7 @@
 # Copyright (c) 2026 Legion Builds. BSD-3-Clause, see LICENSE.
 """Packs the published oar-tools programs into the release archives.
 
-usage: python build/package.py --win <publish folder> --linux <publish folder> --out <output folder> [--version 0.5.0]
+usage: python build/package.py --win <publish folder> --linux <publish folder> --out <output folder> [--version 0.6.0]
 
 Writes oar-tools-<version>-windows-x64.zip, oar-tools-<version>-linux-x64.tar.gz and SHA256SUMS.txt into the output folder.
 Also keeps the files each archive is made from as stage/<package name>/ beside them, and writes STAGED-FILES.txt (SHA-256, size and
