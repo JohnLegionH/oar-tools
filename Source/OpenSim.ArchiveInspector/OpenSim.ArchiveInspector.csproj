@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>oar-tools</AssemblyName>
+    <AssemblyTitle>oar-tools</AssemblyTitle>
+    <!-- no ICU library is needed on Linux; the OpenMetaverse library asks for the culture "en-us" when it starts, which invariant mode allows only with this -->
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <PredefinedCulturesOnly>false</PredefinedCulturesOnly>
+  </PropertyGroup>
+
+  <!-- the single-file build carries the image library's native code for both platforms it is published for; the Linux package is the variant that does not need fontconfig -->
+  <ItemGroup>
+    <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="4.151.1" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="4.151.1" />
+  </ItemGroup>
+
+  <!-- dotnet publish -p:OarToolsPublish=true: the published program makes its hash objects in managed code, so it starts on a Linux without libssl (see the targets file) -->
+  <PropertyGroup Condition="'$(OarToolsPublish)' == 'true'">
+    <PatchHashObjects>true</PatchHashObjects>
+  </PropertyGroup>
+  <Import Project="../OpenSim.Archive.PackagePatch/PatchHashObjects.targets" />
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="OpenSim.Archive.GltfExport.Tests" />
+    <InternalsVisibleTo Include="OpenSim.Archive.Converter.Tests" />
+    <InternalsVisibleTo Include="OpenSim.Archive.Restore.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../Source/OpenSim.Archive.Inspection/OpenSim.Archive.Inspection.csproj" />
+    <ProjectReference Include="../../Source/OpenSim.Archive.ObjectInspect/OpenSim.Archive.ObjectInspect.csproj" />
+    <ProjectReference Include="../../Source/OpenSim.Archive.GltfExport/OpenSim.Archive.GltfExport.csproj" />
+    <ProjectReference Include="../../Source/OpenSim.Archive.Compare/OpenSim.Archive.Compare.csproj" />
+    <ProjectReference Include="../../Source/OpenSim.Archive.ScriptScan/OpenSim.Archive.ScriptScan.csproj" />
+    <ProjectReference Include="../../Source/OpenSim.Archive.Eligibility/OpenSim.Archive.Eligibility.csproj" />
+    <ProjectReference Include="../../Source/OpenSim.Archive.Converter/OpenSim.Archive.Converter.csproj" />
+    <ProjectReference Include="../../Source/OpenSim.Archive.Restore/OpenSim.Archive.Restore.csproj" />
+  </ItemGroup>
+</Project>

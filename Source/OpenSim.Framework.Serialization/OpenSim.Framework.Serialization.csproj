@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyTitle>OpenSim.Framework.Serialization</AssemblyTitle>
+    <Company>http://opensimulator.org</Company>
+    <Product>OpenSim</Product>
+    <Copyright>OpenSimulator developers</Copyright>
+  </PropertyGroup>
+
+  <!-- Only the archive constants and the tar reader and writer of OpenSim.Framework.Serialization are carried. -->
+  <ItemGroup>
+    <ProjectReference Include="../../Source/OpenSim.Framework/OpenSim.Framework.csproj" />
+  </ItemGroup>
+</Project>

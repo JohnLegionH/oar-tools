@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+      <AssemblyTitle>OpenSim.Framework</AssemblyTitle>
+      <Company>http://opensimulator.org</Company>
+      <Product>OpenSim.Framework</Product>
+      <Copyright>Copyright (c) OpenSimulator.org Developers 2007-2009</Copyright>
+      <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+  </PropertyGroup> 
+  
+  <ItemGroup>
+    <Reference Include="LukeSkywalker.IPNetwork" HintPath="../../Library/LukeSkywalker.IPNetwork.dll" />
+    <Reference Include="xmlrpc" HintPath="../../Library/xmlrpc.dll" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BouncyCastle.Cryptography" Version="2.6.2" />
+    <PackageReference Include="System.Configuration.ConfigurationManager" Version="10.0.10" />
+    <PackageReference Include="System.Security.Permissions" Version="10.0.10" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.11" />
+    <PackageReference Include="SkiaSharp" Version="4.151.1" />
+    <PackageReference Include="CoreJ2K.Skia" Version="2.3.3.91" />
+    <PackageReference Include="McMaster.NETCore.Plugins" Version="2.0.0" />
+    <PackageReference Include="zlib.net-mutliplatform" Version="1.1.0" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,484 @@
+/* Copyright (c) 2026 Legion Builds
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ */
+
+using System.IO.Compression;
+using System.Text;
+using OpenMetaverse;
+using OpenSim.Framework.Serialization;
+using Xunit;
+using static OpenSim.Archive.Rewrite.Tests.RewriteKit;
+
+namespace OpenSim.Archive.Rewrite.Tests;
+
+/// <summary>The in-place patch on hand-written object XML, and the rewrite of small hand-made archives.</summary>
+public class RewriteTests
+{
+    private static readonly Guid PartA = Guid.Parse("00000000-0000-4000-8000-0000000000a1");
+    private static readonly Guid PartB = Guid.Parse("00000000-0000-4000-8000-0000000000b2");
+
+    /// <summary>Object XML laid out the way a person or another tool might: odd spacing, attributes, comments, CRLF.</summary>
+    private static string ObjectText(string nameA = "<Name>Alpha</Name>", string nl = "\n") =>
+        "<?xml version=\"1.0\" encoding=\"utf-8\"?>" + nl +
+        "<SceneObjectGroup>" + nl +
+        "  <RootPart>" + nl +
+        "    <SceneObjectPart xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\">" + nl +
+        "      <AllowedDrop>false</AllowedDrop>" + nl +
+        "      <UUID><UUID>" + PartA + "</UUID></UUID>" + nl +
+        "      " + nameA + nl +
+        "      <!-- kept as is -->" + nl +
+        "      <Description>root &amp; more</Description>" + nl +
+        "      <TaskInventory><TaskInventoryItem><Name>Item inside</Name></TaskInventoryItem></TaskInventory>" + nl +
+        "      <Unknown a=\"x>y\" b='1'>  keep   me </Unknown>" + nl +
+        "    </SceneObjectPart>" + nl +
+        "  </RootPart>" + nl +
+        "  <OtherParts>" + nl +
+        "    <Part><SceneObjectPart>" + nl +
+        "      <UUID><Guid>" + PartB + "</Guid></UUID>" + nl +
+        "      <Name>Beta</Name>" + nl +
+        "      <Shape><ProfileShape>Circle</ProfileShape></Shape>" + nl +
+        "    </SceneObjectPart></Part>" + nl +
+        "  </OtherParts>" + nl +
+        "</SceneObjectGroup>";
+
+    private static byte[] Patch(byte[] xml, params PartPatch[] patches)
+    {
+        ObjectXml.Decoded d = ObjectXml.Decode(xml);
+        return ObjectXml.Apply(d, patches.ToDictionary(p => p.PartId), "objects/t.xml");
+    }
+
+    private static byte[] Utf8(string s) => new UTF8Encoding(false).GetBytes(s);
+
+    private static readonly Guid NewPart = Guid.Parse("00000000-0000-4000-8000-0000000000c3");
+    private const string NewPartText = "<SceneObjectPart><UUID><UUID>00000000-0000-4000-8000-0000000000c3</UUID></UUID><Name>New</Name></SceneObjectPart>";
+
+    private static string Insert(string objectText, Func<Func<string, string>, string> make = null)
+    {
+        ObjectXml.Decoded d = ObjectXml.Decode(Utf8(objectText));
+        byte[] result = ObjectXml.Apply(d, new Dictionary<Guid, PartPatch>(), new[] { new PartInsertion(PartA, make ?? (_ => NewPartText)) }, "objects/t.xml");
+        return new UTF8Encoding(false).GetString(result);
+    }
+
+    [Fact]
+    public void ANewPart_GoesAtTheEndOfTheOtherParts_AndNothingElseMoves()
+    {
+        string before = ObjectText();
+        string after = Insert(before);
+        Assert.Equal(before.Replace("</OtherParts>", "<Part>" + NewPartText + "</Part></OtherParts>"), after);
+    }
+
+    [Theory]
+    [InlineData("<OtherParts />")]
+    [InlineData("<OtherParts/>")]
+    public void ANewPart_FillsAnEmptyOtherPartsElement(string empty)
+    {
+        string single = ObjectText();
+        single = single.Substring(0, single.IndexOf("<OtherParts>", StringComparison.Ordinal)) + empty + "</SceneObjectGroup>";
+        string after = Insert(single);
+        Assert.Contains("<OtherParts><Part>" + NewPartText + "</Part></OtherParts></SceneObjectGroup>", after);
+        Assert.DoesNotContain(empty, after);
+    }
+
+    [Fact]
+    public void ANewPart_MakesTheOtherPartsElementWhenThereIsNone()
+    {
+        string single = ObjectText();
+        single = single.Substring(0, single.IndexOf("  <OtherParts>", StringComparison.Ordinal)) + "</SceneObjectGroup>";
+        Assert.Contains("<OtherParts><Part>" + NewPartText + "</Part></OtherParts></SceneObjectGroup>", Insert(single));
+    }
+
+    [Fact]
+    public void ANewPart_CanReadTheAnchorPartsLeafElements()
+    {
+        string seen = null, missing = "not set";
+        Insert(ObjectText(), read =>
+        {
+            seen = read("Name");
+            missing = read("Nothing/Here");
+            return NewPartText;
+        });
+        Assert.Equal("Alpha", seen);
+        Assert.Null(missing);
+    }
+
+    [Fact]
+    public void ADeferredPatch_CanReadThePartsTextToBuildItsEdits()
+    {
+        byte[] after = Patch(Utf8(ObjectText()), new PartPatch(PartA, (PartView view) => new[] { ElementEdit.SetText("Name", view.Text("Name") + "!") }));
+        Assert.Contains("<Name>Alpha!</Name>", new UTF8Encoding(false).GetString(after));
+    }
+
+    [Fact]
+    public void ANewPart_ThatLeavesNoRoomForItsAnchor_IsRefused()
+    {
+        ObjectXml.Decoded d = ObjectXml.Decode(Utf8(ObjectText()));
+        Assert.Throws<InvalidDataException>(() => ObjectXml.Apply(d, new Dictionary<Guid, PartPatch>(), new[] { new PartInsertion(Guid.NewGuid(), _ => NewPartText) }, "objects/t.xml"));
+    }
+
+    // The region reads OtherParts as a list of Part elements, each holding one SceneObjectPart
+    // (SceneObjectSerializer.FromOriginalXmlFormat reads "Part" and then its "SceneObjectPart").
+    [Fact]
+    public void ANewPart_IsWrappedInAPartElementAsTheRegionReadsIt()
+    {
+        string after = Insert(ObjectText());
+        Assert.Contains("<Part>" + NewPartText + "</Part></OtherParts>", after);
+        Assert.Equal(1, System.Xml.Linq.XDocument.Parse(after).Descendants("OtherParts").SelectMany(o => o.Elements("Part")).Count(p => p.Element("SceneObjectPart")?.Element("Name")?.Value == "New"));
+    }
+
+    private static string Remove(string objectText, params Guid[] ids)
+    {
+        ObjectXml.Decoded d = ObjectXml.Decode(Utf8(objectText));
+        byte[] result = ObjectXml.Apply(d, new Dictionary<Guid, PartPatch>(), Array.Empty<PartInsertion>(), ids, "objects/t.xml");
+        return new UTF8Encoding(false).GetString(result);
+    }
+
+    [Fact]
+    public void ARemovedPart_GoesWithItsPartWrapper_AndNothingElseMoves()
+    {
+        string before = ObjectText();
+        int start = before.IndexOf("\n    <Part><SceneObjectPart>", StringComparison.Ordinal);
+        int end = before.IndexOf("</Part>", StringComparison.Ordinal) + "</Part>".Length;
+        Assert.Equal(before.Remove(start, end - start), Remove(before, PartB));
+    }
+
+    [Fact]
+    public void ARemovedRootPart_IsRefused()
+    {
+        Assert.Throws<InvalidDataException>(() => Remove(ObjectText(), PartA));
+    }
+
+    [Fact]
+    public void ARemovedPartThatIsNotInTheFile_IsRefused()
+    {
+        Assert.Throws<InvalidDataException>(() => Remove(ObjectText(), Guid.NewGuid()));
+    }
+
+    [Fact]
+    public void AnEditCanAddAnElementThePartLacks_AndReplacesOneItHas()
+    {
+        string text = ObjectText();
+        byte[] added = Patch(Utf8(text), new PartPatch(PartB, new[] { ElementEdit.SetTextOrAdd("PhysicsShapeType", "1") }));
+        string after = new UTF8Encoding(false).GetString(added);
+        Assert.Contains("<PhysicsShapeType>1</PhysicsShapeType></SceneObjectPart>", after);
+        Assert.Equal(1, System.Xml.Linq.XDocument.Parse(after).Descendants("PhysicsShapeType").Count());
+
+        byte[] replaced = Patch(added, new PartPatch(PartB, new[] { ElementEdit.SetTextOrAdd("PhysicsShapeType", "2") }));
+        string again = new UTF8Encoding(false).GetString(replaced);
+        Assert.Contains("<PhysicsShapeType>2</PhysicsShapeType>", again);
+        Assert.Equal(1, System.Xml.Linq.XDocument.Parse(again).Descendants("PhysicsShapeType").Count());
+
+        // an element nested below another one is never invented
+        Assert.Throws<InvalidDataException>(() => Patch(Utf8(text), new PartPatch(PartB, new[] { ElementEdit.SetTextOrAdd("Shape/NoSuchThing", "1") })));
+    }
+
+    [Fact]
+    public void AnEditThatAsksForIt_CanAddAnElementAtTheEndOfTheShape_AndReplacesOneItHas()
+    {
+        string text = ObjectText();
+        byte[] added = Patch(Utf8(text), new PartPatch(PartB, new[] { ElementEdit.SetTextOrAddInShape("Shape/MatOvrd", "AA==") }));
+        string after = new UTF8Encoding(false).GetString(added);
+        Assert.Contains("<Shape><ProfileShape>Circle</ProfileShape><MatOvrd>AA==</MatOvrd></Shape>", after);
+        Assert.Equal(1, System.Xml.Linq.XDocument.Parse(after).Descendants("MatOvrd").Count());
+
+        byte[] replaced = Patch(added, new PartPatch(PartB, new[] { ElementEdit.SetTextOrAddInShape("Shape/MatOvrd", "AQID") }));
+        string again = new UTF8Encoding(false).GetString(replaced);
+        Assert.Contains("<MatOvrd>AQID</MatOvrd>", again);
+        Assert.Equal(1, System.Xml.Linq.XDocument.Parse(again).Descendants("MatOvrd").Count());
+
+        // text with markup characters is escaped, as every text edit is
+        byte[] escaped = Patch(Utf8(text), new PartPatch(PartB, new[] { ElementEdit.SetTextOrAddInShape("Shape/Media", "<OSMedia type=\"sl\"/>") }));
+        Assert.Contains("<Media>&lt;OSMedia type=\"sl\"/&gt;</Media></Shape>", new UTF8Encoding(false).GetString(escaped));
+    }
+
+    [Fact]
+    public void AnEditThatAddsInTheShape_NeedsAShapeAndAPathDirectlyBelowIt()
+    {
+        // a part with no Shape element has nowhere to put the element
+        Assert.Throws<InvalidDataException>(() => Patch(Utf8(ObjectText()), new PartPatch(PartA, new[] { ElementEdit.SetTextOrAddInShape("Shape/MatOvrd", "AA==") })));
+        Assert.Throws<ArgumentException>(() => ElementEdit.SetTextOrAddInShape("Shape/A/B", "x"));
+        Assert.Throws<ArgumentException>(() => ElementEdit.SetTextOrAddInShape("Name", "x"));
+    }
+
+    [Fact]
+    public void AnEditCanAddAMarkupElementThePartLacks_AndReplacesOneItHas()
+    {
+        string text = ObjectText();
+        byte[] added = Patch(Utf8(text), new PartPatch(PartB, new[] { ElementEdit.SetInnerXmlOrAdd("Notes", "<Item>first</Item>") }));
+        string after = new UTF8Encoding(false).GetString(added);
+        Assert.Contains("<Notes><Item>first</Item></Notes></SceneObjectPart>", after);
+        Assert.Equal(1, System.Xml.Linq.XDocument.Parse(after).Descendants("Item").Count());
+
+        byte[] replaced = Patch(added, new PartPatch(PartB, new[] { ElementEdit.SetInnerXmlOrAdd("Notes", "<Item>second</Item>") }));
+        string again = new UTF8Encoding(false).GetString(replaced);
+        Assert.Contains("<Notes><Item>second</Item></Notes>", again);
+        Assert.DoesNotContain("first", again);
+        Assert.Equal(1, System.Xml.Linq.XDocument.Parse(again).Descendants("Notes").Count());
+
+        Assert.Throws<InvalidDataException>(() => Patch(Utf8(text), new PartPatch(PartB, new[] { ElementEdit.SetInnerXmlOrAdd("Shape/NoSuchThing", "<a/>") })));
+        Assert.Throws<ArgumentException>(() => ElementEdit.SetInnerXmlOrAdd("Notes", "<open>"));
+    }
+
+    [Theory]
+    [InlineData("\n")]
+    [InlineData("\r\n")]
+    [InlineData("\r")]
+    public void Rename_ChangesOnlyTheNameText_WhateverTheLineEndings(string nl)
+    {
+        string before = ObjectText(nl: nl);
+        string after = Encoding.UTF8.GetString(Patch(Utf8(before), new PartPatch(PartA, ElementEdit.SetText("Name", "Alpha two"))));
+        Assert.Equal(before.Replace("<Name>Alpha</Name>", "<Name>Alpha two</Name>"), after);
+    }
+
+    [Fact]
+    public void Rename_OfTheOtherPart_FindsItByUuid_AndLeavesTheFirstAlone()
+    {
+        string before = ObjectText();
+        string after = Encoding.UTF8.GetString(Patch(Utf8(before), new PartPatch(PartB, ElementEdit.SetText("Name", "Beta two"))));
+        Assert.Equal(before.Replace("<Name>Beta</Name>", "<Name>Beta two</Name>"), after);
+    }
+
+    [Fact]
+    public void Text_IsEscaped()
+    {
+        string after = Encoding.UTF8.GetString(Patch(Utf8(ObjectText()), new PartPatch(PartA, ElementEdit.SetText("Name", "a<b>&c"))));
+        Assert.Contains("<Name>a&lt;b&gt;&amp;c</Name>", after);
+    }
+
+    [Fact]
+    public void AnElementInsideTheTaskInventory_IsNotTakenForThePartsName()
+    {
+        string before = ObjectText();
+        string after = Encoding.UTF8.GetString(Patch(Utf8(before), new PartPatch(PartA, ElementEdit.SetText("Name", "X"))));
+        Assert.Contains("<TaskInventoryItem><Name>Item inside</Name></TaskInventoryItem>", after);
+        // the nested one is reachable by its own path
+        string nested = Encoding.UTF8.GetString(Patch(Utf8(before), new PartPatch(PartA, ElementEdit.SetText("TaskInventory/TaskInventoryItem/Name", "Y"))));
+        Assert.Equal(before.Replace("Item inside", "Y"), nested);
+    }
+
+    [Fact]
+    public void SelfClosingElement_BecomesAnElementWithContent()
+    {
+        string before = ObjectText("<Name />");
+        string after = Encoding.UTF8.GetString(Patch(Utf8(before), new PartPatch(PartA, ElementEdit.SetText("Name", "Filled"))));
+        Assert.Equal(before.Replace("<Name />", "<Name>Filled</Name>"), after);
+
+        before = ObjectText("<Name/>");
+        after = Encoding.UTF8.GetString(Patch(Utf8(before), new PartPatch(PartA, ElementEdit.SetText("Name", "Filled"))));
+        Assert.Equal(before.Replace("<Name/>", "<Name>Filled</Name>"), after);
+    }
+
+    [Fact]
+    public void EmptyNameElement_CanBeFilled_AndAFilledOneEmptied()
+    {
+        string before = ObjectText("<Name></Name>");
+        Assert.Contains("<Name>F</Name>", Encoding.UTF8.GetString(Patch(Utf8(before), new PartPatch(PartA, ElementEdit.SetText("Name", "F")))));
+        Assert.Contains("<Name></Name>", Encoding.UTF8.GetString(Patch(Utf8(ObjectText()), new PartPatch(PartA, ElementEdit.SetText("Name", "")))));
+    }
+
+    [Fact]
+    public void ByteOrderMark_IsKept()
+    {
+        byte[] bom = { 0xEF, 0xBB, 0xBF };
+        byte[] source = bom.Concat(Utf8(ObjectText())).ToArray();
+        byte[] result = Patch(source, new PartPatch(PartA, ElementEdit.SetText("Name", "B")));
+        Assert.Equal(bom, result.Take(3).ToArray());
+        Assert.Contains("<Name>B</Name>", Encoding.UTF8.GetString(result, 3, result.Length - 3));
+    }
+
+    [Fact]
+    public void NonAsciiText_BeforeThePart_DoesNotShiftThePatch()
+    {
+        string before = ObjectText().Replace("<AllowedDrop>", "<!-- café \U0001F600 -->\n<AllowedDrop>");
+        string after = Encoding.UTF8.GetString(Patch(Utf8(before), new PartPatch(PartA, ElementEdit.SetText("Name", "Z"))));
+        Assert.Equal(before.Replace("<Name>Alpha</Name>", "<Name>Z</Name>"), after);
+    }
+
+    [Fact]
+    public void SetInnerXml_ReplacesNestedContent_AndMalformedMarkupIsRefused()
+    {
+        string before = ObjectText();
+        string after = Encoding.UTF8.GetString(Patch(Utf8(before), new PartPatch(PartB, ElementEdit.SetInnerXml("Shape", "<ProfileShape>Square</ProfileShape>"))));
+        Assert.Equal(before.Replace("Circle", "Square"), after);
+        Assert.Throws<ArgumentException>(() => ElementEdit.SetInnerXml("Shape", "<open>"));
+    }
+
+    [Fact]
+    public void TwoEditsToOnePart_AreBothApplied_AndOverlappingOnesRefused()
+    {
+        string before = ObjectText();
+        string after = Encoding.UTF8.GetString(Patch(Utf8(before),
+            new PartPatch(PartA, ElementEdit.SetText("Name", "N"), ElementEdit.SetText("Description", "D"))));
+        Assert.Equal(before.Replace("<Name>Alpha</Name>", "<Name>N</Name>").Replace("root &amp; more", "D"), after);
+
+        Assert.Throws<InvalidDataException>(() => Patch(Utf8(before),
+            new PartPatch(PartA, ElementEdit.SetText("TaskInventory", "x"), ElementEdit.SetText("TaskInventory/TaskInventoryItem/Name", "y"))));
+    }
+
+    [Fact]
+    public void MissingPart_MissingElement_AndInvalidBytes_AreRefused()
+    {
+        Assert.Throws<InvalidDataException>(() => Patch(Utf8(ObjectText()), new PartPatch(Guid.NewGuid(), ElementEdit.SetText("Name", "x"))));
+        Assert.Throws<InvalidDataException>(() => Patch(Utf8(ObjectText()), new PartPatch(PartA, ElementEdit.SetText("NoSuch", "x"))));
+        Assert.Throws<InvalidDataException>(() => Patch(Utf8(ObjectText()), new PartPatch(PartA, ElementEdit.SetText("Unknown/Child", "x"))));
+        Assert.Throws<ArgumentException>(() => ElementEdit.SetText("Name", "bad\u0001char"));
+        Assert.ThrowsAny<Exception>(() => ObjectXml.Decode(new byte[] { 0x3c, 0xff, 0xfe, 0x3e }));
+    }
+
+    // ------------------------------------------------------------------ whole-archive rewrite on hand-made archives
+
+    private static byte[] MakeOar(IEnumerable<(string name, byte[] data)> entries)
+    {
+        using MemoryStream raw = new MemoryStream();
+        using (GZipStream gz = new GZipStream(raw, CompressionLevel.Fastest, true))
+        using (TarWriter w = new TarWriter(gz, true))
+            foreach ((string n, byte[] d) in entries)
+                w.WriteFile(n, d);
+        return raw.ToArray();
+    }
+
+    private static (RewriteSummary summary, byte[] output) Run(byte[] source, Action<ArchiveRewriter> setup = null)
+    {
+        ArchiveRewriter rw = new ArchiveRewriter();
+        setup?.Invoke(rw);
+        using MemoryStream dest = new MemoryStream();
+        RewriteSummary s = rw.Rewrite(() => new MemoryStream(source), dest);
+        return (s, dest.ToArray());
+    }
+
+    private static List<(string name, byte[] data)> HandMade() => new List<(string, byte[])>
+    {
+        ("archive.xml", Utf8("<archive major_version=\"0\" minor_version=\"8\" />")),
+        ("assets/", Array.Empty<byte>()),
+        ("assets/" + Guid.Parse("11111111-1111-4111-8111-111111111111") + "_texture.jp2", new byte[] { 1, 2, 3, 4, 5 }),
+        ("objects/Thing_001-002-003__" + PartA + ".xml", Utf8(ObjectText())),
+        ("objects/" + new string('l', 150) + ".xml", Utf8("<x/>")),
+        ("terrains/0,0.r32", new byte[2000]),
+        ("empty.bin", Array.Empty<byte>()),
+    };
+
+    [Fact]
+    public void Identity_KeepsOrderNamesAndBodies_AndCountsEverything()
+    {
+        List<(string name, byte[] data)> src = HandMade();
+        (RewriteSummary s, byte[] output) = Run(MakeOar(src));
+
+        List<(string name, byte[] data)> got = ReadEntries(output);
+        Assert.Equal(src.Select(e => e.name), got.Select(e => e.name));
+        for (int i = 0; i < src.Count; i++)
+            Assert.Equal(src[i].data, got[i].data);
+
+        Assert.Equal(src.Count, s.SourceEntries);
+        Assert.Equal(src.Count, s.EntriesCopied);
+        Assert.Equal(0, s.ObjectsPatched);
+        Assert.Equal(0, s.AssetsAdded);
+        Assert.Equal(src.Count, s.EntriesWritten);
+        Assert.True(s.ControlFileFirst);
+        Assert.Equal("archive.xml", got[0].name);
+    }
+
+    [Fact]
+    public void PlainTarSource_IsAccepted_AndComesOutGzipped()
+    {
+        using MemoryStream raw = new MemoryStream();
+        using (TarWriter w = new TarWriter(raw, true))
+            w.WriteFile("archive.xml", Utf8("<archive/>"));
+        (RewriteSummary s, byte[] output) = Run(raw.ToArray());
+        Assert.Equal(0x1f, output[0]);
+        Assert.Equal(0x8b, output[1]);
+        Assert.Equal(1, s.EntriesWritten);
+    }
+
+    [Fact]
+    public void PartPatch_ChangesOnlyItsObjectFile()
+    {
+        List<(string name, byte[] data)> src = HandMade();
+        (RewriteSummary s, byte[] output) = Run(MakeOar(src), rw => rw.AddPatch(new PartPatch(PartB, ElementEdit.SetText("Name", "Beta renamed"))));
+
+        List<(string name, byte[] data)> got = ReadEntries(output);
+        Assert.Equal(src.Select(e => e.name), got.Select(e => e.name));
+        for (int i = 0; i < src.Count; i++)
+        {
+            if (src[i].name.StartsWith("objects/Thing"))
+                Assert.Equal(Encoding.UTF8.GetString(src[i].data).Replace("<Name>Beta</Name>", "<Name>Beta renamed</Name>"), Encoding.UTF8.GetString(got[i].data));
+            else
+                Assert.Equal(src[i].data, got[i].data);
+        }
+        Assert.Equal(1, s.ObjectsPatched);
+        Assert.Equal(1, s.ObjectFilesPatched);
+        Assert.Equal(src.Count - 1, s.EntriesCopied);
+        Assert.Single(s.PatchedEntries);
+    }
+
+    [Fact]
+    public void AddedAsset_IsAppended_WithTheTypesExtension()
+    {
+        List<(string name, byte[] data)> src = HandMade();
+        Guid id = Guid.Parse("22222222-2222-4222-8222-222222222222");
+        byte[] mesh = { 9, 8, 7 };
+        (RewriteSummary s, byte[] output) = Run(MakeOar(src), rw => rw.AddAsset(id, AssetType.Mesh, mesh));
+
+        List<(string name, byte[] data)> got = ReadEntries(output);
+        Assert.Equal(src.Count + 1, got.Count);
+        Assert.Equal("assets/" + id + "_mesh.llmesh", got[^1].name);
+        Assert.Equal(mesh, got[^1].data);
+        Assert.Equal(1, s.AssetsAdded);
+        Assert.Equal(src.Count, s.EntriesCopied);
+        Assert.Equal(src.Count + 1, s.EntriesWritten);
+        Assert.Contains("\"AssetsAdded\": 1", s.ToJson());
+    }
+
+    [Fact]
+    public void TheGzipHeaderNamesTheSameSystemOnEveryPlatform()
+    {
+        // the framework writes the running platform's code into the header's OS field (10 on Windows, 3 on Linux);
+        // the field is fixed so that the same input gives the same bytes on every platform
+        (RewriteSummary _, byte[] output) = Run(MakeOar(HandMade()));
+        Assert.Equal(0x1f, output[0]);
+        Assert.Equal(0x8b, output[1]);
+        Assert.Equal(10, output[9]);
+    }
+
+    [Fact]
+    public void Refusals_HappenBeforeTheOutputIsWritten()
+    {
+        byte[] source = MakeOar(HandMade());
+        string dest = TempFile(".oar");
+
+        ArchiveRewriter missing = new ArchiveRewriter();
+        missing.AddPatch(new PartPatch(Guid.NewGuid(), ElementEdit.SetText("Name", "x")));
+        string src = TempFile(".oar");
+        File.WriteAllBytes(src, source);
+        Assert.Throws<InvalidDataException>(() => missing.Rewrite(src, dest));
+        Assert.False(File.Exists(dest));
+
+        ArchiveRewriter collision = new ArchiveRewriter();
+        collision.AddAsset(Guid.Parse("11111111-1111-4111-8111-111111111111"), AssetType.Texture, new byte[1]);   // image/jp2 maps to texture.jp2
+        Assert.Throws<InvalidOperationException>(() => collision.Rewrite(src, dest));
+        Assert.False(File.Exists(dest));
+
+        Assert.Throws<ArgumentException>(() => new ArchiveRewriter().Rewrite(src, src));
+
+        ArchiveRewriter twice = new ArchiveRewriter();
+        twice.AddPatch(new PartPatch(PartA, ElementEdit.SetText("Name", "x")));
+        Assert.Throws<InvalidOperationException>(() => twice.AddPatch(new PartPatch(PartA, ElementEdit.SetText("Name", "y"))));
+
+        ArchiveRewriter dup = new ArchiveRewriter();
+        Guid g = Guid.NewGuid();
+        dup.AddAsset(g, AssetType.Mesh, new byte[1]);
+        Assert.Throws<InvalidOperationException>(() => dup.AddAsset(g, AssetType.Mesh, new byte[1]));
+    }
+
+    [Fact]
+    public void ExistingOutputFile_IsNotOverwritten()
+    {
+        string src = TempFile(".oar");
+        string dest = TempFile(".oar");
+        File.WriteAllBytes(src, MakeOar(HandMade()));
+        File.WriteAllBytes(dest, new byte[] { 1 });
+        Assert.Throws<IOException>(() => new ArchiveRewriter().Rewrite(src, dest));
+        Assert.Equal(new byte[] { 1 }, File.ReadAllBytes(dest));
+    }
+}

@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyTitle>OpenSim.Region.PhysicsModules.Meshing</AssemblyTitle>
+    <Company>http://opensimulator.org</Company>
+    <Product>OpenSim</Product>
+    <Copyright>OpenSimulator developers</Copyright>
+  </PropertyGroup>
+
+  <!-- Only the prim and sculpt mesher of OpenSim.Region.PhysicsModules.Meshing is carried; the region module wrapper is not. -->
+  <ItemGroup>
+    <PackageReference Include="CoreJ2K.Skia" Version="2.3.3.91" />
+    <PackageReference Include="SkiaSharp" Version="4.151.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../Source/OpenSim.Framework/OpenSim.Framework.csproj" />
+    <ProjectReference Include="../../Source/OpenSim.Region.PhysicsModules.SharedBase/OpenSim.Region.PhysicsModules.SharedBase.csproj" />
+  </ItemGroup>
+</Project>

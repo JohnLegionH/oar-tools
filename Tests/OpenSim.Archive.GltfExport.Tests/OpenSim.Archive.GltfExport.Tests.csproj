@@ -1,0 +1,54 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+ <PropertyGroup>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <IsPackable>false</IsPackable>
+    <IsPublishable>false</IsPublishable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Source\OpenSim.Archive.GltfExport\OpenSim.Archive.GltfExport.csproj" />
+    <ProjectReference Include="..\..\Source\OpenSim.Archive.Inspection\OpenSim.Archive.Inspection.csproj" />
+    <ProjectReference Include="..\..\Source\OpenSim.ArchiveInspector\OpenSim.ArchiveInspector.csproj" />
+    <ProjectReference Include="..\..\Source\OpenSim.Framework\OpenSim.Framework.csproj" />
+    <ProjectReference Include="..\..\Source\OpenSim.Framework.Serialization\OpenSim.Framework.Serialization.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The region's own sculpt mesher, compiled only to compare which way it faces a surface with the exporter (a reference, not the rule). -->
+    <Compile Include="..\..\Source\OpenSim.Region.PhysicsModules.Meshing\Meshmerizer\SculptMap.cs" Link="Reference\SculptMap.cs" />
+    <Compile Include="..\..\Source\OpenSim.Region.PhysicsModules.Meshing\Meshmerizer\SculptMesh.cs" Link="Reference\SculptMesh.cs" />
+  </ItemGroup>
+
+  <!-- The exporter compiles the prim mesher's source into its own assembly, and the command-line project this one references brings in the region's mesher assembly through the converter; both then define the mesher's types (Coord, Path, ...) and every use of them is ambiguous. This project builds the sculpt mesher itself (above), so the region's assembly is dropped from its compile references. -->
+  <Target Name="DropRegionMesherReference" AfterTargets="FindReferenceAssembliesForReferences">
+    <ItemGroup>
+      <ReferencePathWithRefAssemblies Remove="@(ReferencePathWithRefAssemblies)" Condition="'%(Filename)' == 'OpenSim.Region.PhysicsModules.Meshing'" />
+    </ItemGroup>
+  </Target>
+
+  <ItemGroup>
+    <None Include="Fixtures\**\*" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The SkiaSharp package brings the native library for Windows and macOS only. The shipped programs add the Linux one (see OpenSim.ArchiveInspector.csproj); without it the exporter's image self-check fails on Linux and every export test exits 2. -->
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="4.151.1" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="10.0.10" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.8.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="coverlet.collector" Version="10.0.1">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+</Project>

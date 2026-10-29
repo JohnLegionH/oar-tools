@@ -1,0 +1,8 @@
+<Project>
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', $(MSBuildThisFileDirectory)../))" />
+  <ItemGroup>
+    <!-- the Linux image library, so tests that decode pictures run on Linux -->
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="4.151.1" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="4.151.1" />
+  </ItemGroup>
+</Project>
