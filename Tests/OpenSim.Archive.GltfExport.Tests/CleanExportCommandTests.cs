@@ -97,6 +97,7 @@ public class CleanExportCommandTests
         Assert.Equal(0, exit);
         Assert.Contains("[--clean]", output);
         Assert.Contains("--no-clean           accepted and ignored", output);
+        Assert.Contains("before 0.6.0", output);
         Assert.Contains("--clean              remove duplicate and loose vertices", output);
     }
 

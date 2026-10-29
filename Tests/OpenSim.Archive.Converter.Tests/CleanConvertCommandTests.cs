@@ -57,11 +57,11 @@ public class CleanConvertCommandTests
     [Fact]
     public void AllTheToolsReportTheSameRelease()
     {
-        Assert.Equal("0.5.0", ToolRelease.Version);
-        Assert.Equal("oar-tools 0.5.0", VersionLine(ConvertCommand.Run));
-        Assert.Equal("oar-tools 0.5.0", VersionLine(ExportCommand.Run));
-        Assert.Equal("oar-tools 0.5.0", VersionLine(RestoreCommand.Run));
-        Assert.Equal("oar-tools 0.5.0", VersionLine(InspectCommand.Run));
+        Assert.Equal("0.6.0", ToolRelease.Version);
+        Assert.Equal("oar-tools 0.6.0", VersionLine(ConvertCommand.Run));
+        Assert.Equal("oar-tools 0.6.0", VersionLine(ExportCommand.Run));
+        Assert.Equal("oar-tools 0.6.0", VersionLine(RestoreCommand.Run));
+        Assert.Equal("oar-tools 0.6.0", VersionLine(InspectCommand.Run));
     }
 
     [Fact]

@@ -65,7 +65,7 @@ public class WrapperAndDispatchTests
     {
         var r = Capture(() => Program.Main(new[] { "--version" }));
         Assert.Equal(0, r.code);
-        Assert.Equal("oar-tools 0.5.0", r.output.Trim());
+        Assert.Equal("oar-tools 0.6.0", r.output.Trim());
     }
 
     [Theory]
