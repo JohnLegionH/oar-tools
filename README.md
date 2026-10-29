@@ -129,7 +129,8 @@ that code with the changes listed in `CHANGELOG.md`.
 * `Source/OpenSim.Archive.Inspection/PrimFaceCount.cs` is OpenSim's `SceneObjectPart.GetNumberOfSides` and `GetPrimType`
   as functions of a prim shape.
 * `Source/OpenSim.Archive.ScriptScan/Lsl/LSL_Constants.cs` is OpenSim's LSL constants file, copied without a code change.
-* The mesher in the glTF export follows the Second Life viewer's face numbering; see `ViewerFaceRule`.
+* The geometry in the glTF export is the Second Life viewer's own tessellation at its highest level of detail, with its face
+  numbering (`ViewerFaceRule`); see `docs/GEOMETRY.md` for how it was checked and where it stops.
 
 Every file carried from OpenSim keeps OpenSim's notice, and a file we changed says "Adapted 2026 by Legion Builds" below it.
 The licences are described in `LICENSE`; the libraries that are bundled are in `THIRD-PARTY-NOTICES.txt`.

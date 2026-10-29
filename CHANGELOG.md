@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+* **The exported geometry is what the viewer draws.** Prims and sculpts are tessellated as the Second Life viewer does at its
+  highest level of detail: its points on the profile and path, its faces in its order, its triangles, normals and texture
+  coordinates. The export used to build far fewer vertices (two triangles on a box side where the viewer has eighteen), and built the
+  isometric and right triangle profiles as squares. The result was checked against the viewer's own volume code for 290 prim
+  shapes and 116 sculpts at all four levels of detail; see `docs/GEOMETRY.md`. Files written by earlier versions have fewer
+  vertices; the face numbers and the texture coordinate convention are the same.
+* **`convert` keeps a prim as a prim** when its path type is not a line or a circle (the flexible path type, the viewer's test
+  path) or its profile type is above the half circle: reason code `SHAPE_UNSUPPORTED`.
+
 ## 0.5.0
 
 The tools move into their own repository and become one program.
